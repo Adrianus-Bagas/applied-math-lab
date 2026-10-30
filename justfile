@@ -47,12 +47,15 @@ lint-go:
 lint-py:
     uv run ruff format --check
     uv run ruff check
-    uv run mypy packages/python/*/src
+    uv run mypy packages/python/*/src packages/rust/*/python
 
 lint-misc:
     pnpm format:check
 
 # ---------- test ----------
+# Bangun ulang extension module PyO3 ke .venv (debug, inkremental)
+py-ext:
+    uv run maturin develop --uv -m packages/rust/lab-numerics-py/Cargo.toml
 
 # Jalankan semua test
 test: test-rust test-go test-py
@@ -63,7 +66,7 @@ test-rust:
 test-go:
     go test -race ./...
 
-test-py:
+test-py: py-ext
     uv run pytest
 
 # ---------- gabungan ----------

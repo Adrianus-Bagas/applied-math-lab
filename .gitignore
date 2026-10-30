@@ -39,3 +39,6 @@ coverage.out
 
 # --- Data (lihat PROJECT_CONTEXT §3) ---
 datasets/**/raw/
+
+# Extension module hasil maturin develop
+*.so

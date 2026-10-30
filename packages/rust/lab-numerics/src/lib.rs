@@ -1,5 +1,7 @@
 //! Utilitas numerik bersama untuk Applied Math Lab.
 
+pub mod stats;
+
 /// Membandingkan dua `f64` dengan toleransi relatif dan absolut.
 ///
 /// Semantik sama dengan `math.isclose` Python (simetris terhadap a dan b):

@@ -1,0 +1,5 @@
+# Interpreter yang dipakai pyo3-build-config saat `cargo clippy/test`.
+# Dipin ke venv uv agar sama dengan .python-version, bukan python3 sistem.
+# maturin menimpa nilai ini dengan interpreternya sendiri saat build.
+[env]
+PYO3_PYTHON = { value = ".venv/bin/python", relative = true }

@@ -9,7 +9,12 @@ rust-version = "1.99"
 
 [workspace.dependencies]
 # Versi dependensi bersama dicatat di sini saat mulai dipakai
-# (rand_chacha, serde, pyo3, rayon, ...).
+# (rand_chacha, serde, rayon, ...).
+# abi3-py313: satu wheel untuk CPython >= 3.13 (stable ABI).
+# Tanpa fitur `extension-module` (deprecated; maturin >= 1.9.4 mengurusnya).
+pyo3 = { version = "0.30", features = ["abi3-py313"] }
+# Harus satu minor dengan pyo3.
+numpy = "0.30"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

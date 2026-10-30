@@ -1,0 +1,23 @@
+[project]
+name = "lab-numerics"
+version = "0.1.0"
+description = "Binding Python (PyO3) untuk crate Rust lab-numerics"
+requires-python = ">=3.13,<3.14"
+dependencies = ["numpy>=2.5.4"]
+
+[build-system]
+requires = ["maturin>=1.9.4,<2"]
+build-backend = "maturin"
+
+[tool.maturin]
+# Layout campuran: paket Python murni di python/, .so menjadi submodul _core.
+module-name = "lab_numerics._core"
+python-source = "python"
+
+[tool.uv]
+# uv membangun ulang paket ini bila file berikut berubah.
+cache-keys = [
+  { file = "pyproject.toml" },
+  { file = "Cargo.toml" },
+  { file = "src/**/*.rs" },
+]
