@@ -1,0 +1,49 @@
+[project]
+name = "applied-math-lab"
+version = "0.0.0"
+requires-python = ">=3.13,<3.14"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/python/*"]
+# services/*/worker ditambahkan saat worker pertama dibuat
+
+# ---------- ruff ----------
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "W",   # pycodestyle
+  "F",   # pyflakes: nama tak terpakai, undefined
+  "I",   # urutan import
+  "B",   # bugbear: pola rawan bug
+  "UP",  # sintaks Python modern
+  "N",   # penamaan
+  "SIM", # penyederhanaan
+  "NPY", # aturan khusus NumPy
+  "PT",  # gaya pytest
+  "RUF", # aturan khusus ruff
+]
+
+# ---------- mypy ----------
+[tool.mypy]
+python_version = "3.13"
+strict = true
+
+# ---------- pytest ----------
+[tool.pytest.ini_options]
+testpaths = ["packages/python"]
+addopts = ["--import-mode=importlib", "-ra", "--strict-markers"]
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.170.14",
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]

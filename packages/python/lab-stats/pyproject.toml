@@ -1,0 +1,12 @@
+[project]
+name = "lab-stats"
+version = "0.1.0"
+description = "Statistik bersama Applied Math Lab"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "numpy>=2.5.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

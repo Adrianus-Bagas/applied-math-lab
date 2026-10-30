@@ -1,0 +1,15 @@
+{
+  "name": "applied-math-lab",
+  "private": true,
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "packageManager": "pnpm@12.16.1",
+  "devDependencies": {
+    "prettier": "3.9.10"
+  }
+}

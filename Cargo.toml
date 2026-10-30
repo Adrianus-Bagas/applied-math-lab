@@ -1,0 +1,15 @@
+[workspace]
+resolver = "3"
+members = ["packages/rust/*"]
+# services/*/core ditambahkan saat crate pertama dibuat (MBG-4.1)
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.99"
+
+[workspace.dependencies]
+# Versi dependensi bersama dicatat di sini saat mulai dipakai
+# (rand_chacha, serde, pyo3, rayon, ...).
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
