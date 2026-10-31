@@ -1,0 +1,527 @@
+# PROJECT_CONTEXT — Applied Math Lab
+
+> **Versi dokumen:** 1.4
+> **Terakhir diperbarui:** 2026-10-31
+> **Status:** Dokumen induk lab. Semua proyek dimulai dari nol dengan arsitektur seragam.
+> **Dokumen turunan:** `PROJECT_CONTEXT` MealOps v3.1 (dokumen lama berjudul *MBG v3.1*) tetap menjadi rujukan **model matematis dan algoritma MealOps**; istilah khusus program MBG/SPPG di dalamnya dibaca sebagai istilah umum menurut glosarium §5.1. Bagian yang digantikan oleh dokumen ini dicantumkan di §5.1.
+
+### Perubahan v1.4 (31 Okt 2026)
+
+- **Proyek pertama digeneralisasi** dari "MBG Operations Optimizer" menjadi **MealOps — optimasi dapur massal dan distribusi makanan perishable**. Model matematis dan algoritmanya tidak berubah; yang berubah adalah framing masalah (§1, §5.1), nama, dan identifier.
+- Prefiks milestone `MBG-n` menjadi `MO-n`; direktori `services/mbg` menjadi `services/mealops`; crate `mbg-core` menjadi `mealops-core`; rute portal `/mealops`; `docs/mathematics/mealops/`. Belum ada kode proyek ini di repo, jadi penggantian nama tidak memerlukan migrasi.
+- Rujukan `PROJECT_CONTEXT` MBG v3.1 menjadi `PROJECT_CONTEXT` MealOps v3.1, dengan glosarium istilah lama → umum di §5.1.
+
+### Perubahan v1.3 (31 Okt 2026, L0.4)
+
+- **LAB-ADR-010** ditambahkan (§2.3): antrean job implementasi sendiri di PostgreSQL (klaim `SKIP LOCKED` satu perintah, lease + fencing token `attempts`, NOTIFY sebagai petunjuk + polling cadangan, heartbeat/reaper, watchdog timeout, retry dengan backoff equal jitter, worker crash-only) dan kontrak payload JSON Schema 2020-12 per `<kind>.v<N>`.
+- §9 Keputusan Terbuka nomor 3 dan 4 ditutup; nomor 10 ditambahkan (slot job berat lintas database).
+- §2.5 baris Pengujian, Akses DB, dan Kontrak diperbarui; §3 struktur repo diperbarui (`contracts/`, `packages/go/jobqueue`, `packages/python/lab-worker`, `services/hello/worker`, `infrastructure/compose.dev.yaml`); catatan advisory lock di §4.4.
+
+### Perubahan v1.2 (30 Okt 2026, L0.3)
+
+- **LAB-ADR-009** ditambahkan (§2.3): core Rust murni + crate binding `-py` terpisah (PyO3 abi3, tanpa fitur `extension-module`), layout campuran maturin dengan stub `.pyi`, `PYO3_PYTHON` dipin ke `.venv`, `just py-ext` sebelum pytest, input array tanpa salin lewat rust-numpy, toleransi oracle dari analisis galat.
+- **LAB-ADR-007** diperbarui: `py.allow_threads` sekarang bernama `py.detach` (PyO3 ≥ 0.26), plus kontrak mutasi array.
+- §3 struktur repo diperbarui (`lab-numerics-py`, `.cargo/config.toml`, konvensi `services/*/core-py`).
+
+### Perubahan v1.1 (30 Okt 2026, L0.2)
+
+- **LAB-ADR-008** ditambahkan (§2.3): monorepo, satu Go binary per proyek, **satu `go.mod` di root** (bukan `go.work`), `just` sebagai task runner, semua toolchain dipin.
+- §2.5 baris Workspace dan §3 struktur repo diperbarui sesuai kondisi repo nyata.
+- §9 Keputusan Terbuka nomor 1 dan 2 ditutup.
+
+### Perubahan utama (30 Okt 2026)
+
+- Lab berisi tiga proyek: **MBG Operations Optimizer** (sejak v1.4: **MealOps**), **DengueSim** (DBD), dan **Harga Pangan** (nama kerja: PanganWatch).
+- **Arsitektur empat lapisan seragam** untuk semua proyek: Next.js → Go → Python → Rust.
+- Proyek pertama dimulai ulang. Stack lama (Go sebagai satu-satunya backend, tanpa Python) digantikan.
+- Fondasi lab (L0) dibangun sekali dan dipakai ulang oleh ketiga proyek.
+- Roadmap baru dengan sub-milestone **≤ 10 jam**, ditambah timeline lab secara keseluruhan.
+
+---
+
+## 1. Visi
+
+Laboratorium portofolio berisi **tiga software** yang intinya adalah implementasi **matematika terapan** (dengan AI sebagai pendukung) untuk masalah nyata di Indonesia. Setiap proyek mewakili **cabang matematika yang berbeda**. Tujuannya ganda: membangun portofolio sekaligus mengulas kembali teori matematika terapan. Karena itu setiap implementasi harus disertai pemahaman konsepnya.
+
+| # | Proyek | Masalah | Cabang matematika utama |
+|---|---|---|---|
+| 1 | **MealOps** | Produksi di dapur massal dan distribusi makanan perishable ke banyak titik layanan dengan jendela waktu dan batas waktu konsumsi | Optimasi kombinatorial, metaheuristik, simulasi Monte Carlo |
+| 2 | **DengueSim** | Wabah DBD musiman dan efektivitas intervensi | Sistem dinamik (ODE), inferensi Bayesian, kontrol optimal |
+| 3 | **Harga Pangan** (PanganWatch) | Gejolak harga pangan pokok dan kebijakan stok penyangga | Proses stokastik, model state-space, pemrograman dinamik stokastik |
+
+**Prinsip bersama:** sistem pendukung keputusan, bukan sistem resmi pemerintah. Asumsi, nilai ilustratif, dan hasil model selalu diberi label yang jelas. Tidak ada klaim melampaui apa yang dibuktikan model.
+
+## 2. Arsitektur Seragam
+
+### 2.1 Stack per lapisan
+
+| Lapisan | Teknologi | Tanggung jawab | Bukan tanggung jawabnya |
+|---|---|---|---|
+| Frontend | **Next.js + TypeScript** | UI, peta, grafik, simulasi interaktif via WASM | Logika bisnis |
+| API | **Go** | Auth/RBAC, CRUD, validasi input, orkestrasi job, SSE progres, AI gateway (LLM) | Matematika apa pun |
+| Modelling | **Python** (dikelola dengan uv) | Persiapan data, definisi model dan skenario, kalibrasi, validasi, analisis hasil, benchmark, notebook | Loop berat |
+| Komputasi | **Rust** | *Hot loop*: solver, sampler, filter, simulasi | I/O, database, HTTP |
+
+Aturan praktis: fungsi yang dipanggil jutaan kali dalam satu run masuk ke Rust. Pekerjaan merangkai, menyiapkan, dan menganalisis masuk ke Python. Operasi yang mudah divektorisasi (reduksi, aljabar linear) tetap memakai NumPy; Rust dipakai untuk loop yang tidak bisa divektorisasi (terbukti di L0.3: NumPy mean+var lebih cepat dari Welford Rust).
+
+### 2.2 Topologi
+
+```text
+                       Internet (HTTPS :443)
+                                │
+                       ┌────────▼────────┐
+                       │ Caddy           │  TLS otomatis, subdomain per proyek
+                       └───┬─────────┬───┘
+                           │         │ /api/*
+              ┌────────────▼──┐   ┌──▼──────────────────┐
+              │ Next.js       │──►│ Go API (per proyek) │──► API penyedia LLM
+              │ lab portal    │   │ auth, CRUD, submit  │
+              │ (+ modul WASM)│   └──────────┬──────────┘
+              └───────────────┘              │ INSERT job (queued) + NOTIFY
+                                  ┌──────────▼──────────┐
+                                  │ PostgreSQL          │  data, snapshot,
+                                  │ + PostGIS/Timescale │  antrean job
+                                  └──────────▲──────────┘
+                                             │ FOR UPDATE SKIP LOCKED
+                                  ┌──────────┴──────────┐
+                                  │ Python worker       │  modelling, validasi,
+                                  │  └─ import core     │  analisis
+                                  │     (Rust via PyO3) │  komputasi berat
+                                  └─────────────────────┘
+```
+
+### 2.3 Prinsip arsitektur (ADR lab)
+
+- **LAB-ADR-001: Empat lapisan seragam.** Pola dipelajari sekali dan dipakai ulang di tiga proyek. Template dibangun di L0. Menggantikan ADR-001 MealOps (Go sebagai satu bahasa backend).
+- **LAB-ADR-002: Go tidak memanggil Rust secara langsung.** Tidak ada cgo/FFI. Rust dikompilasi menjadi modul Python lewat **PyO3 + maturin**.
+- **LAB-ADR-003: Go ↔ Python hanya lewat antrean job PostgreSQL** (`SKIP LOCKED` + `LISTEN/NOTIFY`), dengan payload JSONB yang divalidasi skema bersama. Menggantikan ADR-003 MealOps (API dan worker dalam satu binary Go). ADR-002 MealOps (Postgres, bukan Redis) tetap berlaku.
+- **LAB-ADR-004: Math core murni.** Crate Rust tanpa I/O, deterministik (seed eksplisit, RNG `rand_chacha`), dan bisa diuji tanpa database atau HTTP. Ini setara ADR-004 MealOps, hanya bahasanya yang berubah.
+- **LAB-ADR-005: LLM mengusulkan dan menjelaskan; solver dan validator yang memutuskan.** Akses LLM hanya lewat AI gateway di Go. Setiap angka dalam narasi LLM dicek terhadap data sumber.
+- **LAB-ADR-006: Satu crate, dua target.** Crate Rust yang sama dapat dikompilasi menjadi modul Python (server) dan WASM (browser) bila perlu.
+- **LAB-ADR-007: Lepaskan GIL** (`py.detach`, dulu `py.allow_threads`; PyO3 ≥ 0.26) saat Rust menjalankan loop panjang, supaya worker tetap bisa mengirim heartbeat dan progres. Kontrak: array input yang dibaca tanpa salin tidak boleh dimutasi thread lain selama panggilan (dijamin worker concurrency 1).
+- **LAB-ADR-008: Monorepo dan tooling lintas bahasa** (L0.2, `docs/decisions/LAB-ADR-008-monorepo-dan-tooling.md`). Satu repositori untuk ketiga proyek; satu Go binary per proyek; **satu modul Go di root** (`github.com/Adrianus-Bagas/applied-math-lab`) dengan direktif `ignore` untuk `node_modules`, bukan multi-modul + `go.work` (yang tidak dianjurkan di-commit dan memaksa `replace` di CI/Docker); workspace Cargo, uv, dan pnpm masing-masing dengan satu lockfile; `just` sebagai task runner (`just check` identik dengan CI); toolchain dipin (`rust-toolchain.toml`, `.python-version`, `.node-version`, direktif `go`, `packageManager` pnpm, prettier versi persis).
+- **LAB-ADR-009: Jembatan Rust → Python** (L0.3, `docs/decisions/LAB-ADR-009-jembatan-rust-python.md`). Matematika di core murni tanpa pyo3; crate binding `<nama>-py` (`cdylib`, `test = false`) hanya mengonversi tipe dan melepas GIL. PyO3 + rust-numpy di `[workspace.dependencies]` dengan minor yang sama, fitur `abi3-py313`, **tanpa** `extension-module` (deprecated; maturin ≥ 1.9.4). Layout campuran maturin: `.so` menjadi `<paket>._core` dengan stub `_core.pyi` + `py.typed` untuk mypy strict. `.cargo/config.toml` memin `PYO3_PYTHON` ke `.venv/bin/python` (`uv sync` harus mendahului `cargo clippy`). `just py-ext` (`maturin develop --uv`) dijalankan sebelum pytest karena cache uv tidak memantau crate core. Input array lewat `PyArrayLike1` (contiguous tanpa salin, view berstride disalin sekali). Toleransi test oracle diturunkan dari analisis galat, bukan angka tetap; input identik dibandingkan dengan `==`.
+- **LAB-ADR-010: Antrean job dan kontrak payload** (L0.4, `docs/decisions/LAB-ADR-010-antrean-job.md`). Implementasi sendiri (pustaka antrean hanya satu bahasa): paket Go `jobqueue` (migrasi goose embedded dengan tabel versi `jobqueue_goose_version`, `Enqueue` yang menerima `pgx.Tx` untuk enqueue transaksional) dan paket Python `lab_worker`. Tabel `lab_jobs` (`uuidv7()`, status text + CHECK, indeks parsial). Klaim = satu perintah autocommit `FOR UPDATE SKIP LOCKED`; **lock untuk mengklaim, lease untuk menjalankan**; `attempts` naik saat klaim dan menjadi fencing token di setiap tulisan worker. **NOTIFY petunjuk, tabel kebenaran**: kanal `lab_jobs` (payload kind) + polling cadangan 30 s; kanal `lab_job_progress` (payload id) untuk SSE. At-least-once: heartbeat 5 s, reaper ambang 15 s, waktu dari `now()` server; handler idempoten. Thread heartbeat merangkap watchdog `timeout_s` (`os._exit(EX_TEMPFAIL)`). Retry dengan backoff equal jitter; `PermanentError` dan payload invalid tanpa retry. Worker crash-only. Kontrak JSON Schema 2020-12 `contracts/jobs/<kind>.v<N>.schema.json`, divalidasi Go saat enqueue dan Python saat klaim; integer yang harus eksak dibatasi 2⁵³ − 1.
+
+### 2.4 Alur kerja algoritma: Python sebagai "meja laboratorium"
+
+1. **Prototipe di Python/NumPy.** Kode masih dekat dengan notasi matematika, dan divalidasi terhadap referensi (SciPy, statsmodels, benchmark publik, contoh hitung tangan).
+2. **Port hot path ke Rust** setelah algoritmanya terbukti benar.
+3. **Versi Python dipertahankan sebagai test oracle.** Test otomatis memastikan output Rust sama dengan Python (dalam toleransi numerik) untuk seed yang sama.
+
+Pola ini diterapkan secara selektif supaya tidak menggandakan pekerjaan:
+- **MealOps:** validator, evaluator, dan Split ditulis di Python sebagai pemeriksa **independen** terhadap optimizer Rust. Metaheuristik (ALNS, GA) langsung ditulis di Rust, tetapi semua solusinya selalu diperiksa validator Python.
+- **DengueSim dan Harga Pangan:** solver ODE, MCMC, Kalman filter, filter Hamilton, dan value iteration diprototipe di Python dan divalidasi terhadap pustaka referensi sebelum diport ke Rust.
+
+### 2.5 Stack pendukung
+
+| Kebutuhan | Go | Python | Rust | Next.js |
+|---|---|---|---|---|
+| Tooling & lint | golangci-lint v2 (gofmt, goimports, revive, dll.), go vet | ruff, mypy strict | rustfmt, clippy `-D warnings` | eslint, prettier |
+| Pengujian | `testing` (`-race`, `-timeout 3m`), testcontainers-go | pytest, Hypothesis, testcontainers-python | `cargo test`, proptest | vitest |
+| Akses DB | pgx (pgxpool) + sqlc, migrasi goose (Provider API, embedded) | psycopg 3 | — | — |
+| Kontrak | OpenAPI (oapi-codegen); JSON Schema job via santhosh-tekuri/jsonschema v6 | JSON Schema (`jsonschema`) / Pydantic | serde | openapi-typescript |
+| Profiling | pprof | cProfile | criterion, flamegraph | — |
+| Workspace | satu `go.mod` di root (LAB-ADR-008) | uv workspace | Cargo workspace | pnpm workspace |
+| Jembatan | — | maturin (build backend) | PyO3 + rust-numpy (LAB-ADR-009) | — |
+
+Prettier di root juga memformat Markdown, JSON, dan YAML. Semua pemeriksaan dijalankan lewat `just` (`just fmt`, `just lint`, `just test`, `just check`). Postgres dev: `just db-up` (`infrastructure/compose.dev.yaml`, PostgreSQL 18); alat antrean dev: `just jobq <migrate|status|enqueue|show>`.
+
+Kontrak dibagi dua: **OpenAPI** untuk Next.js ↔ Go, dan **JSON Schema** untuk payload job Go ↔ Python (diputuskan di L0.4, LAB-ADR-010).
+
+## 3. Struktur Repositori (diputuskan di L0.2, LAB-ADR-008)
+
+```text
+applied-math-lab/
+├── apps/
+│   └── web/                    # Next.js lab portal: /mealops, /dengue, /pangan
+├── services/
+│   ├── hello/                  # walking skeleton lab (L0.4–L0.8)
+│   │   └── worker/             # hello-worker: handler lab.stats.summary ✔
+│   ├── mealops/
+│   │   ├── api/                # Go (paket main di modul root)
+│   │   ├── worker/             # paket Python (anggota uv workspace)
+│   │   ├── core/               # crate Rust murni (mealops-core, anggota Cargo workspace)
+│   │   └── core-py/            # binding PyO3 (anggota Cargo + uv workspace, LAB-ADR-009)
+│   ├── dengue/
+│   │   ├── api/ worker/ core/ core-py/
+│   └── pangan/
+│       ├── api/ worker/ core/ core-py/
+├── packages/
+│   ├── go/                     # bersama: buildinfo ✔, jobqueue ✔ (+ cmd/jobqueuectl), auth, llmgateway, httpx
+│   ├── python/                 # bersama: lab-stats ✔, lab-worker ✔ (klien antrean + loop worker)
+│   └── rust/                   # bersama: lab-numerics ✔, lab-numerics-py ✔ (binding), lab-rng
+├── contracts/                  # contracts.go (embed) ✔, jobs/ (JSON Schema) ✔, openapi/
+├── datasets/                   # per proyek: synthetic/, fixtures/, raw/ (tidak di-commit)
+├── experiments/                # konfigurasi dan hasil benchmark
+├── infrastructure/             # compose.dev.yaml ✔, compose.yaml, Caddyfile, backup/
+├── docs/
+│   ├── decisions/              # ADR lab dan proyek (LAB-ADR-008 ✔, 009 ✔, 010 ✔)
+│   ├── mathematics/            # mealops/, dengue/, pangan/
+│   └── PROGRESS.md             # log handoff antar-thread (saat ini di Project knowledge)
+├── .cargo/config.toml          # PYO3_PYTHON → .venv/bin/python ✔
+├── .env.example                # DATABASE_URL dev ✔ (.env tidak di-commit)
+├── go.mod                      # satu modul Go untuk seluruh repo
+├── Cargo.toml / Cargo.lock     # Cargo workspace (members: packages/rust/*, services/*/core, services/*/core-py)
+├── pyproject.toml / uv.lock    # uv workspace root (package = false) + config ruff/mypy/pytest
+├── package.json / pnpm-workspace.yaml / pnpm-lock.yaml
+├── justfile                    # setup, fmt, lint, test, check, py-ext, db-*, jobq, worker-hello
+├── rust-toolchain.toml / .python-version / .node-version
+├── .golangci.yml / .prettierignore / .editorconfig / .gitattributes / .gitignore
+├── README.md
+└── PROJECT_CONTEXT.md
+```
+
+✔ = sudah ada di repo. Buat direktori hanya ketika sudah ada isi nyatanya. Saat crate atau worker pertama dibuat, tambahkan `services/*/core` dan `services/*/core-py` ke `members` Cargo; `services/*/worker` dan `services/*/core-py` ke `members` uv; path binding baru ke resep `py-ext`, path `python/` binding dan `services/*/worker/src` ke `lint-py` (mypy), dan direktori test ke `testpaths` pytest. (Bagian worker sudah dilakukan untuk `services/hello/worker` di L0.4.)
+
+## 4. Infrastruktur dan Deployment
+
+### 4.1 VPS
+
+| Sumber daya | Tersedia |
+|---|---:|
+| CPU | 2 vCPU |
+| RAM | 8 GB |
+| Disk | 100 GB NVMe |
+| Bandwidth bulanan | 8 TB |
+
+### 4.2 Anggaran sumber daya awal (dikalibrasi lewat pengukuran)
+
+| Container | Batas CPU | Batas memori | Catatan |
+|---|---|---|---|
+| caddy | 0.25 | 128 MB | |
+| web (Next.js standalone) | 0.5 | 512 MB | Satu portal untuk tiga proyek |
+| api ×3 (Go) | 0.25 masing-masing | 128 MB masing-masing | `GOMEMLIMIT` di bawah batas container |
+| worker ×3 (Python + Rust) | 1.0 masing-masing | 768 MB masing-masing | Concurrency 1 job, batas waktu per job |
+| postgres | 0.5 | 1.5 GB | PostGIS + TimescaleDB, satu database per proyek |
+| osrm (MealOps, fase lanjutan) | 0.5 | 1.5 GB | Ekstrak satu kota/provinsi |
+
+Batas CPU sengaja *overcommit*. Ketiga worker jarang aktif bersamaan, dan worker tidak boleh memonopoli mesin. Total memori puncak sekitar 5,5 GB.
+
+**Bottleneck pertama yang diperkirakan adalah CPU.** Konsekuensinya:
+1. Komputasi berat dilakukan offline di laptop (praproses OSRM, kalibrasi MCMC panjang, matriks jarak); VPS hanya menyimpan hasilnya.
+2. Solver selalu dijalankan lewat antrean.
+3. Simulasi interaktif dijalankan di klien (WASM).
+
+### 4.3 Kecukupan VPS
+
+| Sumber daya | Kebutuhan perkiraan | Penilaian |
+|---|---|---|
+| RAM 8 GB | ~4 GB tanpa OSRM, ~5,5 GB dengan OSRM | **Cukup**, dengan sisa untuk page cache Postgres |
+| CPU 2 vCPU | Solver/MCMC bisa memakai 1 core penuh selama menit hingga jam | **Batas utama.** Cukup untuk demo, tidak cukup untuk benchmark besar atau banyak job paralel |
+| Disk 100 GB NVMe | OS ~5 GB, image Docker ~5–8 GB, database < 5 GB (Harga Pangan tumbuh paling cepat), backup lokal ~5 GB, data OSRM terproses beberapa GB | **Sangat cukup** |
+| Bandwidth 8 TB/bulan | Trafik portofolio, pull image saat deploy, backup off-site: jauh di bawah 100 GB/bulan | **Sangat cukup** |
+
+**Kesimpulan:** cukup untuk menjalankan tiga aplikasi sebagai demo portofolio dengan trafik rendah. Tidak cukup (dan tidak perlu) untuk benchmark multi-seed skala penuh, rantai MCMC panjang, praproses OSRM, atau banyak pengguna yang menjalankan solver bersamaan. Pekerjaan itu dilakukan di laptop.
+
+### 4.4 Strategi memaksimalkan VPS
+
+**CPU (prioritas utama)**
+1. **Komputasi offline, penyajian online.** Benchmark, kalibrasi MCMC, praproses peta, dan matriks jarak dijalankan di laptop. Hasilnya diunggah ke database sebagai artefak.
+2. **Skenario demo diprakomputasi.** Pengunjung portofolio langsung melihat hasil tanpa memicu solver.
+3. **Satu slot job berat untuk seluruh lab.** Ketiga worker berbagi kuota sehingga paling banyak satu job berat berjalan pada satu waktu dan satu core selalu tersisa untuk API, web, dan database. Catatan (L0.4): advisory lock PostgreSQL berlingkup **per database**, sedangkan lab memakai satu database per proyek, jadi mekanismenya belum diputuskan (§9 nomor 10).
+4. **Batas per job:** batas waktu, ukuran instans maksimum di mode demo, dan rate limit pengajuan job per pengguna.
+5. **Memoisasi hasil.** Kombinasi snapshot skenario + algoritma + seed + versi kode yang sama memakai ulang hasil yang sudah ada (hasil bersifat immutable).
+6. **Komputasi di browser (WASM)** untuk simulasi interaktif DengueSim, Kalman filter interaktif Harga Pangan, dan instans MealOps kecil, sehingga CPU pengunjung yang bekerja.
+7. **Build di CI**, tidak pernah di VPS.
+
+**RAM**
+- `GOMEMLIMIT` di setiap Go API; Python worker satu proses dengan import sekali dan menunggu via `LISTEN`, bukan polling.
+- PostgreSQL disetel untuk RAM kecil: `shared_buffers` ~1 GB, `work_mem` kecil, `max_connections` ~30.
+- Swap 2–4 GB di NVMe (atau zram) sebagai jaring pengaman, bukan memori kerja.
+- OSRM hanya dinyalakan bila routing on-demand benar-benar dibutuhkan (MO-21). Alternatifnya, matriks waktu tempuh diprakomputasi di laptop dan disimpan di database, sehingga container OSRM tidak perlu ada.
+
+**Disk**
+- `docker image prune` setelah deploy; simpan dua versi image terakhir untuk rollback.
+- Kompresi dan retensi TimescaleDB untuk data harga harian.
+- Rotasi log Docker; retensi backup lokal 7 hari, salinan utama off-site.
+
+**Bandwidth**
+- Aset statis di-cache Caddy dan browser; modul WASM dikompresi (brotli).
+- Tile peta dari penyedia eksternal, tidak di-host sendiri.
+
+**Ukur sebelum menyetel.** Monitoring ringan (Uptime Kuma + metrik container) dipasang di L0.8. Batas container di §4.2 adalah titik awal dan dikalibrasi dari pemakaian nyata.
+
+### 4.5 CI/CD
+
+```text
+git push ──► GitHub Actions (path filter per proyek)
+             ├─ lint + test: Go, Python, Rust, Next.js (via `just check`)
+             ├─ build image multi-stage
+             │    Go: golang → distroless
+             │    Worker: rust + maturin (wheel) → python-slim
+             │    Web: node → standalone
+             └─ push ke GitHub Container Registry
+                      │
+                      ▼ SSH ke VPS
+             docker compose pull && docker compose up -d
+```
+
+Image di-build di CI, tidak pernah di VPS. Test integrasi Go dan Python membutuhkan Docker (testcontainers) di runner CI.
+
+### 4.6 Kebersihan produksi
+
+- HTTPS lewat Caddy; hanya port 80/443 yang terbuka; PostgreSQL tidak publik.
+- Secret disimpan di `.env` yang tidak di-commit, dengan prinsip *least privilege*.
+- `pg_dump` terjadwal ke lokasi off-site, dengan uji restore berkala.
+- Healthcheck `/healthz` dan `/readyz`, `restart: unless-stopped` (wajib untuk worker crash-only, LAB-ADR-010), rotasi log.
+- Hanya data sintetis atau data publik; tidak ada data pribadi yang dikirim ke penyedia LLM.
+
+## 5. Ringkasan Proyek
+
+### 5.1 MealOps — optimasi dapur massal dan distribusi makanan perishable
+
+- **Masalah:** dapur massal (dapur produksi terpusat, katering institusi seperti sekolah, rumah sakit, dan kantor, dapur umum tanggap bencana, cloud kitchen) memasak ribuan porsi dalam beberapa batch dan mengirimkannya ke banyak titik layanan dengan armada terbatas. Makanan siap saji bersifat **perishable**: ada batas waktu sejak selesai dimasak sampai dikonsumsi (*holding time*), sehingga jadwal produksi dan rute pengiriman harus diputuskan **bersama**. Memasak terlalu awal melanggar batas waktu; terlalu lambat melanggar jendela waktu titik layanan.
+- **Matematika:** varian VRP dengan jendela waktu dan kapasitas (CVRPTW), multi-trip dan pemecahan demand, penjadwalan batch produksi dengan release date, constraint holding time yang mengikat produksi dan routing, metaheuristik (ALNS, GA memetic), dan simulasi Monte Carlo untuk robustness rencana terhadap ketidakpastian waktu masak dan waktu tempuh.
+- **Konteks Indonesia:** program makan bergizi skala besar, katering institusi, dan dapur umum bencana adalah contoh penerapan. Skenario dan data bersifat **sintetis/ilustratif**; MealOps tidak mewakili, tidak dievaluasi terhadap, dan tidak berafiliasi dengan program atau lembaga mana pun.
+- **Batasan:** rencana yang dihasilkan adalah usulan di bawah asumsi model (waktu tempuh, durasi masak, batas holding time sebagai parameter yang dapat diatur), bukan standar keamanan pangan.
+
+**Glosarium istilah dokumen lama (MealOps v3.1, dulu MBG v3.1):**
+
+| Istilah lama | Istilah umum |
+|---|---|
+| Program MBG | Program layanan makan massal (contoh penerapan) |
+| SPPG | Dapur massal / dapur produksi |
+| Sekolah / penerima manfaat | Titik layanan / pelanggan |
+| Porsi MBG | Porsi / demand |
+| `MBG-n` | `MO-n` |
+
+**Rujukan utama:** `PROJECT_CONTEXT` MealOps v3.1. Bagian berikut **tetap berlaku**: §1–4 (masalah, batasan, pengguna, strategi rilis), §8 (model matematis A → D dan Monte Carlo), §9 (algoritma ALNS dan GA memetic), §10 (eksperimen), §11 (AI hanya LLM), §12–14 (model data, API, dashboard), §19 (standar), §21 (deliverable). ADR-002, 005, 006, 007, dan 008 juga tetap berlaku.
+
+**Digantikan oleh dokumen ini:**
+
+| Bagian MealOps v3.1 | Pengganti |
+|---|---|
+| §5 Stack dan ADR-001 (Go satu-satunya) | §2 dokumen ini; LAB-ADR-001 |
+| ADR-003 (api + worker satu binary Go) | LAB-ADR-003 (Go API + Python worker) |
+| ADR-004 (`internal/optimizer` di Go) | LAB-ADR-004 (crate `mealops-core` di Rust) |
+| §6 Arsitektur dan struktur repo | §2.2 dan §3 dokumen ini |
+| §7 Deployment dan spesifikasi VPS | §4 dokumen ini |
+| §15–16 Roadmap dan timeline | §7–8 dokumen ini |
+| §17–18 Alur thread dan kolaborasi | §6 dokumen ini |
+| §22 Konteks singkat | §10 dokumen ini |
+
+**Pembagian lapisan MealOps:**
+- **Rust (`mealops-core`):** model instans/solusi, evaluator cepat dengan forward time slack, konstruktif, local search, ALNS, GA memetic (paralel dengan rayon, RNG per thread diturunkan dari seed utama), solver exact enumerasi + branch-and-bound, decoder produksi, dan simulator eksekusi Monte Carlo.
+- **Python:** generator data sintetis, loader Solomon + BKS, **validator independen**, harness benchmark, statistik (Wilcoxon diimplementasikan sendiri lalu diverifikasi terhadap SciPy), dan analisis Monte Carlo (interval Wilson, common random numbers).
+- **Go:** API domain, snapshot skenario, pengajuan run dan simulasi, AI gateway.
+- **Next.js:** peta rute, Gantt produksi, robustness, perbandingan, asisten what-if.
+
+### 5.2 DengueSim — pemodelan dan intervensi DBD
+
+- **Masalah:** dinas kesehatan perlu memperkirakan lonjakan kasus DBD musiman dan memilih waktu serta intensitas intervensi (fogging, PSN) dengan anggaran terbatas.
+- **Matematika:** model **SEIR (manusia) – SEI (nyamuk)** dengan parameter yang dipengaruhi iklim; analisis ekuilibrium, kestabilan, dan **R₀ via next-generation matrix**; kalibrasi **MCMC (Metropolis–Hastings)**; **kontrol optimal** (prinsip maksimum Pontryagin, forward–backward sweep).
+- **Lapisan:** Rust (RK4, RK45 adaptif Dormand–Prince, MCMC, forward–backward sweep, target WASM); Python (data, definisi model, diagnosa MCMC, validasi terhadap `solve_ivp`); Go (API skenario, hasil kalibrasi); Next.js (kurva epidemi, peta risiko, simulator slider).
+- **AI:** LLM menjelaskan hasil skenario dalam bahasa awam.
+- **Data (perlu diverifikasi):** kasus DBD per kabupaten/kota (Kemenkes/dinkes, Satu Data); iklim harian (BMKG, alternatif NASA POWER).
+- **Batasan:** output berupa proyeksi di bawah asumsi model, bukan prediksi pasti dan bukan pengganti surveilans epidemiologi.
+
+### 5.3 Harga Pangan (PanganWatch)
+
+- **Masalah:** harga pangan pokok (beras, cabai, bawang) bergejolak dan berbeda antarwilayah. Pengambil kebijakan perlu deteksi dini serta keputusan kapan dan berapa banyak melepas stok penyangga.
+- **Matematika:** harga sebagai **proses stokastik**; **model state-space** (local level + musiman, termasuk efek Ramadan/Lebaran yang bergeser mengikuti kalender Hijriah) dengan **Kalman filter/smoother** dan estimasi MLE; **Markov regime-switching** (filter Hamilton) untuk deteksi lonjakan; simulasi **Monte Carlo** untuk interval prediksi; **pemrograman dinamik stokastik** (persamaan Bellman, value iteration) untuk kebijakan stok penyangga.
+- **Lapisan:** Rust (Kalman filter/smoother, filter Hamilton, generator jalur, value iteration); Python (ingest harian, pembersihan, MLE, validasi terhadap statsmodels, backtesting); Go (API harga dan sinyal, job harian); Next.js (grafik + interval prediksi, peta disparitas, panel peringatan, simulator kebijakan).
+- **AI:** LLM merangkum kondisi harga dan menjelaskan peringatan dini.
+- **Data (perlu diverifikasi):** Panel Harga Pangan Badan Pangan Nasional, PIHPS Nasional (Bank Indonesia), BPS. Data time series disimpan di TimescaleDB.
+- **Batasan:** model kebijakan stok adalah penyederhanaan ilustratif, bukan rekomendasi resmi.
+
+## 6. Alur Kolaborasi
+
+Pengguna adalah sarjana matematika dan software engineer frontend (React/Next.js) berpengalaman 3 tahun, dan baru mempelajari Go, Python untuk komputasi, serta Rust. Kerja dibagi ke dalam tiga mode; setiap sub-milestone di §7 diberi label mode.
+
+### 6.1 Mode Tuntun (T): setup environment, proyek, dan deployment
+
+Berlaku untuk lingkungan dev, scaffolding proyek, monorepo, tooling, plumbing antarlapisan (PyO3, antrean job, kontrak), database dan migrasi, Docker, Caddy, CI/CD, deployment, profiling, dan integrasi pustaka.
+
+1. Claude menjelaskan **tujuan dan alasan** setiap langkah, termasuk apa yang terjadi bila langkah itu dilewati.
+2. Claude memberikan instruksi langkah demi langkah: perintah untuk WSL Ubuntu dan isi file lengkap.
+3. Pengguna menjalankan, lalu melaporkan hasil atau error.
+4. Claude membantu debug dan menjelaskan apa yang terjadi.
+5. Ditutup dengan checklist verifikasi (tes hijau, pipeline CI lulus, endpoint merespons).
+
+### 6.2 Mode Latihan (L): logika bisnis dan matematika
+
+Berlaku untuk formulasi model, penurunan teori, validator, algoritma, solver numerik, inferensi, statistik, simulasi, dan logika fitur LLM.
+
+1. Jelaskan **konsep matematis** terlebih dahulu (definisi, intuisi, penurunan bila relevan).
+2. Berikan satu **tugas kecil yang konkret**, disertai kerangka: signature fungsi, definisi tipe, dan tes yang sudah ada.
+3. Pengguna mengimplementasikan logikanya sendiri sampai tes hijau.
+4. Review: kebenaran, kompleksitas, stabilitas numerik, dan gaya idiomatik bahasanya.
+5. Lanjut hanya setelah langkah tersebut dipahami dan tervalidasi.
+
+### 6.3 Mode Mandiri (Md): frontend
+
+Berlaku untuk Next.js, area keahlian pengguna. Pengguna mengimplementasikan; Claude mereview dan membantu bagian integrasi (OpenAPI, WASM, kontrak data).
+
+### 6.4 Prinsip umum
+
+- **Bahasa diajarkan just-in-time.** Rust (ownership, borrowing, trait, generics, iterator, error) dan Python numerik diperkenalkan di L0, lalu didalami saat dibutuhkan. Go hanya dipakai di lapisan API, jadi diajarkan saat milestone API.
+- Hindari memberikan implementasi lengkap untuk tugas Mode Latihan, kecuali diminta secara eksplisit.
+- Instruksi disesuaikan dengan WSL Ubuntu, Docker Engine langsung di WSL, dan editor Zed.
+- Teori dan komputasi diseimbangkan: setiap ⭐ adalah titik belajar teori yang wajib dipahami, bukan hanya diimplementasikan.
+- **Komentar dan docstring di kode ditulis dalam Bahasa Indonesia** (doc comment Go tetap diawali nama identifier). Pesan error runtime boleh berbahasa Inggris.
+
+### 6.5 Alur thread (efisiensi token)
+
+- **Satu sub-milestone = satu thread Claude.** Sub-milestone dibatasi **≤ 10 jam** dan bisa dikerjakan dalam beberapa sesi di thread yang sama.
+- Simpan `PROJECT_CONTEXT.md` (lab), `PROJECT_CONTEXT` MealOps, `docs/PROGRESS.md`, dan `docs/mathematics/<proyek>/model.md` di Project knowledge. Jangan menempelkan ulang konteks di setiap thread.
+- **Membuka thread** dengan satu baris: `Thread L0.1 — Lingkungan dev. Status terakhir: lihat PROGRESS.md.`
+- **Menutup thread** dengan catatan handoff (≤ 150 kata) yang ditambahkan Claude langsung ke `PROGRESS.md` di Project knowledge:
+
+```markdown
+## [MO-1.2] Model A CVRPTW — YYYY-MM-DD
+- Selesai:
+- Keputusan (referensi ADR):
+- File yang berubah:
+- Pertanyaan terbuka:
+- Berikutnya: MO-1.3
+- Jam: estimasi X / aktual Y
+```
+
+- Jika sub-milestone melebihi estimasi, pecah menjadi a/b alih-alih memperpanjang thread.
+
+## 7. Roadmap
+
+Konvensi: format `nomor Nama (jam, mode)`. ⭐ menandai titik utama belajar teori. Prefiks: **L** = lab, **MO** = MealOps, **D** = DengueSim, **P** = Harga Pangan.
+
+### 7.1 L0 — Fondasi Lab (~59 jam)
+
+| Sub-milestone (jam, mode) |
+|---|
+| L0.1 Lingkungan dev: WSL, Go, rustup, uv (Python), Node + pnpm, Docker Engine, Zed + LSP tiap bahasa (4, T) |
+| L0.2 Monorepo: struktur, workspace Go/Cargo/uv/pnpm, lint/format tiap bahasa, Makefile/justfile, ADR struktur repo (5, T) |
+| L0.3 Jembatan Rust → Python: PyO3 + maturin, fungsi contoh, test oracle dengan pytest (5, T) |
+| L0.4 Antrean job: Go enqueue, Python worker `SKIP LOCKED` + `LISTEN/NOTIFY`, heartbeat, kontrak JSON Schema (6, T) |
+| L0.5 Kerangka Next.js lab portal + Go API hello (dasar Go: modul, paket, `net/http`) + progres via SSE (4, T) |
+| L0.6 Docker multi-stage (wheel maturin), Compose lokal untuk semua lapisan (5, T) |
+| L0.7 CI GitHub Actions: matriks 4 bahasa, path filter, push ke GHCR (4, T) |
+| L0.8 VPS: hardening, Caddy, deploy pertama end-to-end "hello lab" (6, T) |
+| L0.9 ⭐ Latihan Rust lewat soal matematika: ownership, borrowing, struct, trait, generics, iterator, error (10, L) |
+| L0.10 ⭐ Latihan Python numerik: vektorisasi NumPy, SciPy, aritmetika floating-point dan toleransi tes (6, L) |
+| L0.11 Template ADR, `PROGRESS.md`, demo Rust → WASM di portal (4, T) |
+
+### 7.2 MealOps — MVP (~317 jam)
+
+Detail matematis setiap milestone mengikuti MealOps v3.1 §8–10.
+
+**Fase 0 — Formulasi dan fondasi data (~83 jam)**
+
+| Milestone | Sub-milestone (jam, mode) | Total |
+|---|---|---|
+| **MO-1** Formulasi matematis | 1.1 Skenario, satuan, semantik waktu, asumsi (4, L) · 1.2 ⭐ Model A CVRPTW (6, L) · 1.3 Contoh hitung tangan feasible + infeasible (4, L) · 1.4 ⭐ Model B multi-trip + pemecahan demand (6, L) · 1.5 ⭐ Model C/D, lower bound holding (8, L) · 1.6 Review dan `docs/mathematics/mealops/` (3, L) | 31 |
+| **MO-2** Data sintetis dan kontrak (Python) | 2.1 Skema instans: JSON Schema + Pydantic (5, T) · 2.2 Generator ber-seed dengan `numpy.random.Generator` (6, L) · 2.3 Fixture, instans Solomon + BKS (5, L) | 16 |
+| **MO-3** Validator independen (Python) | 3.1 Representasi solusi dan decoder (5, L) · 3.2 Feasibility checker dengan laporan pelanggaran terstruktur (8, L) · 3.3 Objektif/metrik + property test dengan Hypothesis (6, L) | 19 |
+| **MO-4** Core dan harness benchmark | 4.1 Crate `mealops-core`: model instans/solusi, serde, binding PyO3 (6, T) · 4.2 Runner multi-seed, anggaran, perekaman environment (5, T) · 4.3 ⭐ Wilcoxon signed-rank: implementasi sendiri, verifikasi terhadap SciPy (6, L) | 17 |
+
+**Fase 1 — Routing dan metaheuristik di Rust (~156 jam)**
+
+| Milestone | Sub-milestone (jam, mode) | Total |
+|---|---|---|
+| **MO-5** Baseline konstruktif | 5.1 Nearest neighbor yang sadar jendela waktu (6, L) · 5.2 ⭐ Insertion Solomon I1 dan regret insertion (9, L) · 5.3 Benchmark (3, L) | 18 |
+| **MO-6** Verifikasi tanpa solver eksternal | 6.1 ⭐ Split sebagai shortest path pada DAG: prototipe Python → Rust (7, L) · 6.2 ⭐ Solver exact enumerasi + branch-and-bound (8, L) · 6.3 Lower bound analitis dan Solomon BKS (5, L) | 20 |
+| **MO-7** Local search bersama | 7.1a Operator relocate, swap, 2-opt*, or-opt (6, L) · 7.1b ⭐ Evaluasi delta dengan forward time slack (6, L) · 7.2 VND (4, L) | 16 |
+| **MO-8** ALNS | 8.1 ⭐ Operator destroy dan repair (8, L) · 8.2 ⭐ Bobot adaptif dan penerimaan Simulated Annealing: rantai Markov, jadwal pendinginan (8, L) · 8.3 Benchmark dan ablation (6, L) | 22 |
+| **MO-9** GA memetic | 9.1 ⭐ Giant tour, Split, crossover OX (8, L) · 9.2 Seleksi, mutasi, local search pada offspring (8, L) · 9.3 Manajemen diversitas ala HGS; penalti vs repair (8, L) · 9.4 Paralelisme rayon yang reprodusibel, tuning, benchmark (6, L) | 30 |
+| **MO-WS** Walking skeleton | WS.1 Go API → antrean → Python worker → `mealops-core`, deploy ke VPS (6, T) · WS.2 Peta rute di Next.js (8, Md) | 14 |
+| **MO-10** Profiling dan perbandingan | 10.1 Profiling Rust: criterion, flamegraph, alokasi di hot loop (8, T) · 10.2 ⭐ ALNS vs GA vs baseline: Wilcoxon berpasangan (4, L) | 12 |
+| **MO-11** Multi-trip | 11.1 Pembentukan trip (5, L) · 11.2 ⭐ Penjadwalan trip ke kendaraan (10, L) · 11.3 Perluasan validator, ALNS, GA; benchmark (9, L) | 24 |
+
+**Fase 2 — Produksi, integrasi, dan robustness (~78 jam)**
+
+| Milestone | Sub-milestone (jam, mode) | Total |
+|---|---|---|
+| **MO-12** Penjadwalan produksi | 12.1 Model batch satu lini (6, L) · 12.2 Lini paralel, baseline EDD (8, L) · 12.3 ⭐ Penjadwalan eksak instans kecil: programa dinamis/enumerasi (8, L) | 22 |
+| **MO-13** Integrasi produksi + routing | 13.1 Release date dan decoder produksi (8, L) · 13.2 Constraint holding, lower bound infeasibility (8, L) · 13.3a ⭐ Pendekatan sekuensial vs iteratif (7, L) · 13.3b ⭐ Pendekatan terintegrasi dan perbandingan (7, L) · 13.4 Integrasi ke ALNS dan GA, ablation, laporan MVP (6, L) | 36 |
+| **MO-14** Simulasi Monte Carlo | 14.1 ⭐ Model ketidakpastian; simulator eksekusi rencana di Rust (8, L) · 14.2 ⭐ Estimator, interval Wilson, ukuran sampel, common random numbers di Python (6, L) · 14.3 Pemilihan rencana robust dari solusi elite, laporan (6, L) | 20 |
+
+### 7.3 DengueSim — MVP (~149 jam)
+
+| Milestone | Sub-milestone (jam, mode) | Total |
+|---|---|---|
+| **D1** Riset dan data | 1.1 ⭐ Literatur: model Ross–Macdonald hingga SEIR–SEI, konteks kebijakan (5, L) · 1.2 Ketersediaan data kasus dan iklim; pilih wilayah studi (5, L) · 1.3 Ingest dan pembersihan data di Python (6, L) | 16 |
+| **D2** Formulasi model | 2.1 ⭐ SIR → SEIR → SEIR–SEI: asumsi, satuan, kompartemen (6, L) · 2.2 ⭐ Ekuilibrium, stabilitas, R₀ via next-generation matrix (8, L) · 2.3 Forcing iklim: parameter sebagai fungsi suhu/hujan (5, L) · 2.4 `docs/mathematics/dengue/` (2, L) | 21 |
+| **D3** Solver ODE | 3.1 ⭐ Euler dan RK4 di Python: galat dan orde konvergensi; validasi terhadap `solve_ivp` (7, L) · 3.2 ⭐ RK45 adaptif (Dormand–Prince) di Rust (9, L) · 3.3 Binding PyO3, test oracle, uji konservasi populasi (4, L) | 20 |
+| **D4** Kalibrasi Bayesian | 4.1 ⭐ Likelihood (Poisson/Negative Binomial, under-reporting) dan prior (6, L) · 4.2 ⭐ Metropolis–Hastings di Rust (8, L) · 4.3 ⭐ Diagnosa: trace, R-hat, ESS, posterior predictive (ArviZ) (7, L) · 4.4 Identifiabilitas dan parameter recovery pada data sintetis (5, L) | 26 |
+| **D5** Kontrol optimal | 5.1 ⭐ Kalkulus variasi, prinsip maksimum Pontryagin, Hamiltonian, persamaan adjoint (8, L) · 5.2 ⭐ Forward–backward sweep di Rust (9, L) · 5.3 Skenario anggaran dan analisis sensitivitas (5, L) | 22 |
+| **D6** Simulator WASM | 6.1 Target wasm-pack dari crate yang sama (5, T) · 6.2 UI simulator dengan slider parameter (8, Md) | 13 |
+| **D7** Aplikasi | 7.1 Go API skenario + job kalibrasi/kontrol (6, T) · 7.2 Dashboard: kurva epidemi, peta risiko (10, Md) · 7.3 Deploy (3, T) | 19 |
+| **D8** LLM dan case study | 8.1 Penjelasan skenario dengan cek kesetiaan angka (6, L) · 8.2 Laporan case study (6, L) | 12 |
+
+### 7.4 Harga Pangan — MVP (~140 jam)
+
+| Milestone | Sub-milestone (jam, mode) | Total |
+|---|---|---|
+| **P1** Riset dan data | 1.1 ⭐ Dinamika harga pangan, kebijakan stok penyangga dan operasi pasar (4, L) · 1.2 Sumber data; pilih komoditas dan wilayah (4, L) · 1.3 Pipeline ingest terjadwal + TimescaleDB (6, T) · 1.4 Pembersihan, data hilang, analisis eksploratif (5, L) | 19 |
+| **P2** Fondasi stokastik | 2.1 ⭐ Random walk, stasioneritas, proses AR, log-return (6, L) · 2.2 ⭐ Musiman dan efek hari besar bergeser (Ramadan/Lebaran) (5, L) | 11 |
+| **P3** State-space dan Kalman | 3.1 ⭐ Model state-space: local level + musiman (6, L) · 3.2 ⭐ Penurunan Kalman filter dari conditioning Gaussian; smoother RTS (7, L) · 3.3 Implementasi Rust; validasi terhadap statsmodels (8, L) · 3.4 ⭐ Estimasi MLE via prediction-error decomposition (6, L) | 27 |
+| **P4** Regime switching | 4.1 ⭐ Rantai Markov dan model Markov-switching (5, L) · 4.2 ⭐ Filter Hamilton dan smoother Kim di Rust (8, L) · 4.3 Estimasi, validasi terhadap statsmodels, sinyal peringatan dini (6, L) | 19 |
+| **P5** Monte Carlo dan prediksi | 5.1 Simulasi jalur harga, interval prediksi (5, L) · 5.2 Backtesting rolling-origin: MAPE, CRPS, coverage interval (6, L) | 11 |
+| **P6** Kebijakan stok penyangga | 6.1 ⭐ MDP dan persamaan Bellman (6, L) · 6.2 ⭐ Value iteration di Rust, diskretisasi state (8, L) · 6.3 Evaluasi kebijakan via simulasi vs aturan ambang sederhana (6, L) | 20 |
+| **P7** Aplikasi | 7.1 Go API harga, sinyal, job harian (6, T) · 7.2 Dashboard: grafik, peta disparitas, panel peringatan, simulator kebijakan (12, Md) · 7.3 Deploy + ingest terjadwal di VPS (3, T) | 21 |
+| **P8** LLM dan case study | 8.1 Ringkasan kondisi harga dengan cek kesetiaan angka (6, L) · 8.2 Laporan case study (6, L) | 12 |
+
+### 7.5 L-Final — Penutup lab (~6 jam)
+
+| Sub-milestone (jam, mode) |
+|---|
+| LF.1 Halaman depan lab portal dan indeks case study (4, Md) · LF.2 Review arsitektur lintas proyek dan README lab (2, L) |
+
+### 7.6 MealOps — Pasca-MVP (~229 jam, setelah ketiga MVP selesai)
+
+| Fase | Milestone (sub-milestone) | Total |
+|---|---|---|
+| **F3** Perencanaan sumber daya | MO-15 Ukuran armada (15.1 armada minimum 5, L · 15.2 kurva biaya vs armada 5, L) · MO-16 Tenaga kerja (16.1 kapasitas 5, L · 16.2 ⭐ shift sebagai set covering 10, L · 16.3 durasi vs jumlah staf 6, L) · MO-17 Optimizer terintegrasi (17.1a/b dekomposisi 6+6, L · 17.2a/b ⭐ front Pareto, NSGA-II 6+6, L) | 55 |
+| **F4** Aplikasi | MO-18 Backend Go (18.1 domain, pgx + sqlc, goose 10, T · 18.2 auth/RBAC dari paket bersama 8, T · 18.3 snapshot, OpenAPI 8, T) · MO-19 Job lanjutan: cancel, retry, SSE (6, T) · MO-20 Dashboard (20.1 master data 10, Md · 20.2 peta rute 10, Md · 20.3 Gantt 10, Md · 20.4 robustness 8, Md) | 70 |
+| **F5** Lanjutan | MO-21 OSRM + waktu tempuh bergantung waktu (10, T · 8, L) · MO-22 Kebijakan dan indikator (6+6, L) · MO-23 What-if dan re-optimasi inkremental (8, L · 6+6, L) · MO-24 LLM (24.1 ⭐ penjelasan 10, L · 24.2a/b ⭐ what-if tool calling 7+7, L · 24.3 ⭐ evaluasi 8, L · 24.4 RAG opsional 10, T) · MO-25 Backup off-site, observability, case study (4, T · 6, T · 6+6, L) | 104 (+10) |
+
+## 8. Timeline
+
+### 8.1 Ringkasan jam
+
+Alokasi: **10–15 jam per minggu**, dengan buffer 20%.
+
+| Tahap | Jam inti | Dengan buffer | 10 jam/minggu | 15 jam/minggu |
+|---|---:|---:|---:|---:|
+| L0 Fondasi lab | 59 | 71 | 7 minggu | 5 minggu |
+| MealOps MVP | 317 | 380 | 38 minggu | 25 minggu |
+| DengueSim MVP | 149 | 179 | 18 minggu | 12 minggu |
+| Harga Pangan MVP | 140 | 168 | 17 minggu | 11 minggu |
+| L-Final | 6 | 7 | 1 minggu | 1 minggu |
+| **Total tiga MVP** | **671** | **805** | **81 minggu** | **54 minggu** |
+| MealOps pasca-MVP | 229 | 275 | +28 minggu | +19 minggu |
+
+### 8.2 Kalender (mulai Senin, 2 November 2026)
+
+| Tahap | Dengan 15 jam/minggu | Dengan 10 jam/minggu |
+|---|---|---|
+| L0 Fondasi lab | 2 Nov – 6 Des 2026 | 2 Nov – 20 Des 2026 |
+| MealOps MVP | 7 Des 2026 – 30 Mei 2027 | 21 Des 2026 – 12 Sep 2027 |
+| DengueSim MVP | 31 Mei – 22 Agu 2027 | 13 Sep 2027 – 16 Jan 2028 |
+| Harga Pangan MVP | 23 Agu – 7 Nov 2027 | 17 Jan – 14 Mei 2028 |
+| L-Final | 8 – 14 Nov 2027 | 15 – 21 Mei 2028 |
+
+**Urutan:** L0 → MealOps MVP → DengueSim → Harga Pangan → L-Final → MealOps pasca-MVP. MealOps MVP adalah tahap terpanjang. Bila motivasi atau visibilitas portofolio mulai menjadi masalah, DengueSim bisa disisipkan setelah MO-WS, karena saat itu pola empat lapisan sudah terbukti berjalan end-to-end.
+
+### 8.3 Ritme mingguan
+
+- 2 sesi hari kerja × 1,5–2 jam: teori, formulasi, review (cocok untuk sub-milestone ⭐ dan Mode Latihan).
+- 1 sesi akhir pekan × 5–8 jam: implementasi, setup, debugging (cocok untuk Mode Tuntun).
+- Satu sub-milestone biasanya selesai dalam 1–3 sesi.
+- Setiap 4–6 minggu, bandingkan jam aktual dengan estimasi di `PROGRESS.md` dan kalibrasi ulang timeline.
+
+## 9. Keputusan Terbuka
+
+1. ~~**Struktur repo:** monorepo lab vs repo per proyek.~~ **Diputuskan di L0.2: monorepo** (LAB-ADR-008).
+2. ~~**Go API:** satu binary per proyek vs satu API untuk seluruh lab.~~ **Diputuskan di L0.2: satu binary per proyek** (LAB-ADR-008).
+3. ~~**Kontrak job Go ↔ Python:** JSON Schema vs Protobuf.~~ **Diputuskan di L0.4: JSON Schema 2020-12** per `<kind>.v<N>` (LAB-ADR-010).
+4. ~~**Antrean job:** implementasi sendiri vs pustaka siap pakai.~~ **Diputuskan di L0.4: implementasi sendiri** (LAB-ADR-010).
+5. **Penyedia LLM** dan batas biaya bulanan.
+6. **Wilayah studi DengueSim** dan ketersediaan datanya. Diputuskan di D1.2.
+7. **Komoditas dan wilayah Harga Pangan.** Diputuskan di P1.2.
+8. **Nama final** proyek Harga Pangan.
+9. Keputusan terbuka MealOps v3.1 §20 nomor 1–7, 10, 11, dan 14 tetap berlaku. Nomor 8–9 dan 12 sudah atau akan diputuskan di L0 (Docker Engine di WSL sudah dipilih). Nomor 13 menjadi dukungan debugger per bahasa di Zed, dievaluasi di L0.1.
+10. **Slot job berat lintas proyek** (§4.4 nomor 3): advisory lock berlingkup per database, sedangkan lab memakai satu database per proyek. Opsi: database koordinasi kecil bersama, satu database dengan skema per proyek, atau batas CPU container saja. Diputuskan di L0.6/L0.8.
+
+## 10. Konteks Singkat untuk Sesi Berikutnya
+
+> Kita membangun **Applied Math Lab**: tiga software portofolio berbasis matematika terapan untuk masalah Indonesia, yaitu **MealOps** (optimasi dapur massal dan distribusi makanan perishable: VRP terintegrasi penjadwalan produksi dengan batas holding time; ALNS + GA memetic; Monte Carlo), **DengueSim** (SEIR–SEI; R₀; MCMC; kontrol optimal Pontryagin), dan **Harga Pangan** (state-space + Kalman; regime switching; value iteration untuk stok penyangga). **Arsitektur seragam:** Next.js (satu lab portal) → Go API (auth, CRUD, orkestrasi job, AI gateway) → antrean job PostgreSQL (`SKIP LOCKED`) → Python worker (modelling, validasi, analisis) → Rust core via PyO3/maturin (hot loop; bisa juga WASM). Go tidak memanggil Rust secara langsung. **Jembatan (LAB-ADR-009):** core Rust murni + crate binding `-py` (PyO3 abi3, rust-numpy, `py.detach`), stub `.pyi`, `just py-ext` sebelum pytest, toleransi oracle dari analisis galat. **Antrean (LAB-ADR-010):** implementasi sendiri, `lab_jobs` + paket Go `jobqueue` (`Enqueue` dalam `pgx.Tx`) + paket Python `lab_worker`; lock untuk klaim, lease + fencing `attempts` untuk menjalankan; NOTIFY petunjuk, tabel kebenaran; heartbeat/reaper at-least-once; watchdog timeout; worker crash-only; kontrak JSON Schema `contracts/jobs/<kind>.v<N>.schema.json`; walking skeleton `services/hello/worker`. Pola algoritma: prototipe di Python → port ke Rust → Python sebagai test oracle; di MealOps, validator Python memeriksa semua solusi Rust secara independen. **Repo:** monorepo `github.com/Adrianus-Bagas/applied-math-lab` (LAB-ADR-008): satu `go.mod` di root, workspace Cargo/uv/pnpm, toolchain dipin, `just check` = pemeriksaan CI. **Infra:** VPS 2 vCPU / 8 GB / 100 GB NVMe / 8 TB bandwidth (CPU adalah batas utama; komputasi berat offline, hasil disajikan online; satu slot job berat untuk seluruh lab), Docker Compose, Caddy, PostgreSQL 18 + PostGIS + TimescaleDB, CI GitHub Actions → GHCR. **Dev:** WSL Ubuntu, Docker Engine di WSL, Zed. **Model matematis MealOps** mengikuti `PROJECT_CONTEXT` MealOps v3.1 §8–10. **Kolaborasi:** *Tuntun* (setup environment, proyek, deployment: jelaskan alasan, beri langkah dan file lengkap), *Latihan* (logika bisnis dan matematika: konsep → tugas kecil dengan kerangka dan tes → pengguna implementasi → review), *Mandiri* (frontend). Bahasa diajarkan just-in-time; komentar kode dalam Bahasa Indonesia. **Roadmap:** L0 → MealOps MVP → DengueSim → Harga Pangan → L-Final → MealOps pasca-MVP; satu sub-milestone (≤ 10 jam) per thread; 10–15 jam/minggu. AI hanya LLM: mengusulkan dan menjelaskan, solver dan validator yang memutuskan.
