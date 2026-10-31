@@ -1,0 +1,22 @@
+# Postgres khusus pengembangan lokal. Compose produksi dibuat di L0.6.
+name: lab-dev
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: lab # hanya dev; produksi memakai .env (L0.8)
+      POSTGRES_DB: lab_dev
+    ports:
+      - "127.0.0.1:5432:5432" # hanya loopback, tidak terekspos ke jaringan
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab -d lab_dev"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  pgdata:

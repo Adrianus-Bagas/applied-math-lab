@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "lab.stats.summary v1",
+  "description": "Bangkitkan n sampel N(0,1) dari seed, kembalikan mean dan variansi. Job contoh L0.4.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["n", "seed"],
+  "properties": {
+    "n": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000000,
+      "description": "Ukuran sampel. Batas atas = batas instans mode demo (PROJECT_CONTEXT §4.4)."
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "description": "Seed RNG, dibatasi ke 2^53 - 1 agar eksak di semua lapisan."
+    }
+  }
+}

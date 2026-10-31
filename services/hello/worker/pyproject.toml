@@ -1,0 +1,22 @@
+[project]
+name = "hello-worker"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Adrianus-Bagas", email = "bagasadrianus80@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "lab-numerics",
+    "lab-worker",
+    "numpy>=2.5.4",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+lab-worker = { workspace = true }
+lab-numerics = { workspace = true }

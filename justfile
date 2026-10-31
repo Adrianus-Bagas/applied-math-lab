@@ -1,3 +1,4 @@
+set dotenv-load
 # Applied Math Lab: perintah lintas bahasa.
 # Jalankan `just` tanpa argumen untuk melihat daftar resep.
 
@@ -64,7 +65,7 @@ test-rust:
     cargo test --workspace
 
 test-go:
-    go test -race ./...
+    go test -race -timeout 3m ./...
 
 test-py: py-ext
     uv run pytest
@@ -73,3 +74,30 @@ test-py: py-ext
 
 # Semua pemeriksaan yang juga dijalankan CI
 check: lint test
+
+compose_dev := "docker compose -f infrastructure/compose.dev.yaml"
+
+# Nyalakan Postgres dev dan tunggu sampai sehat
+db-up:
+    {{ compose_dev }} up -d --wait
+
+# Matikan Postgres dev (data tetap ada di volume)
+db-down:
+    {{ compose_dev }} down
+
+# Hapus total, termasuk data
+db-reset:
+    {{ compose_dev }} down -v
+
+# Shell psql ke DB dev
+db-psql:
+    {{ compose_dev }} exec postgres psql -U lab -d lab_dev
+
+# Alat dev antrean: just jobq <migrate|status|enqueue ...|show ...>
+[positional-arguments]
+jobq *args:
+    go run ./packages/go/jobqueue/cmd/jobqueuectl "$@"
+
+# Jalankan worker hello (Ctrl+C untuk berhenti rapi)
+worker-hello:
+    uv run python -m hello_worker
