@@ -1,9 +1,15 @@
 # PROJECT_CONTEXT — Applied Math Lab
 
-> **Versi dokumen:** 1.6
+> **Versi dokumen:** 1.7
 > **Terakhir diperbarui:** 2026-11-01
 > **Status:** Dokumen induk lab. Semua proyek dimulai dari nol dengan arsitektur seragam.
 > **Dokumen turunan:** `PROJECT_CONTEXT` MealOps v3.1 (dokumen lama berjudul _MBG v3.1_) tetap menjadi rujukan **model matematis dan algoritma MealOps**; istilah khusus program MBG/SPPG di dalamnya dibaca sebagai istilah umum menurut glosarium §5.1. Bagian yang digantikan oleh dokumen ini dicantumkan di §5.1.
+
+### Perubahan v1.7 (1 Nov 2026, L0.7)
+
+- **LAB-ADR-013** ditambahkan (§2.3): satu workflow `ci.yml` (`changes` → `check` matrix dinamis → `images` → gerbang `ci-ok`); setiap job memanggil `just ci-<bahasa>` dan gabungannya sama dengan `just check`; path filter dengan anchor (Rust ikut memicu Python); image dibangun setelah check lulus dan di-push ke GHCR hanya dari `main` (tag `sha-<7>` + `main`, `VERSION` via build-arg, package publik); action dipin ke SHA + Dependabot; ruleset `main` (PR wajib, `ci-ok` wajib).
+- `justfile`: resep `setup-py`, `setup-node`, `ci-go`, `ci-rust`, `ci-python`, `ci-web`; `check` kini mencakup web dan mypy memeriksa `services/*/worker/src`. Skrip `typecheck` web menjalankan `next typegen` lebih dulu.
+- §2.5, §3, §4.5, §6.5, §7, §8.3, §10 diperbarui. **Alur penutupan thread berubah:** branch → PR → squash merge (push langsung ke `main` ditolak).
 
 ### Perubahan v1.6 (1 Nov 2026, L0.6)
 
@@ -117,6 +123,7 @@ Aturan praktis: fungsi yang dipanggil jutaan kali dalam satu run masuk ke Rust. 
 - **LAB-ADR-010: Antrean job dan kontrak payload** (L0.4, `docs/decisions/LAB-ADR-010-antrean-job.md`). Implementasi sendiri (pustaka antrean hanya satu bahasa): paket Go `jobqueue` (migrasi goose embedded dengan tabel versi `jobqueue_goose_version`, `Enqueue` yang menerima `pgx.Tx` untuk enqueue transaksional) dan paket Python `lab_worker`. Tabel `lab_jobs` (`uuidv7()`, status text + CHECK, indeks parsial). Klaim = satu perintah autocommit `FOR UPDATE SKIP LOCKED`; **lock untuk mengklaim, lease untuk menjalankan**; `attempts` naik saat klaim dan menjadi fencing token di setiap tulisan worker. **NOTIFY petunjuk, tabel kebenaran**: kanal `lab_jobs` (payload kind) + polling cadangan 30 s; kanal `lab_job_progress` (payload id) untuk SSE, dikirim oleh trigger `lab_jobs_progress_notify` setiap status atau progres berubah (migrasi `00002`, L0.5). At-least-once: heartbeat 5 s, reaper ambang 15 s, waktu dari `now()` server; handler idempoten. Thread heartbeat merangkap watchdog `timeout_s` (`os._exit(EX_TEMPFAIL)`). Retry dengan backoff equal jitter; `PermanentError` dan payload invalid tanpa retry. Worker crash-only. Kontrak JSON Schema 2020-12 `contracts/jobs/<kind>.v<N>.schema.json`, divalidasi Go saat enqueue dan Python saat klaim; integer yang harus eksak dibatasi 2⁵³ − 1.
 - **LAB-ADR-011: Go API, SSE, dan portal** (L0.5, `docs/decisions/LAB-ADR-011-api-hello-dan-sse.md`). Go API memakai pustaka standar: `ServeMux` dengan pola `"METODE /path/{id}"`, `log/slog`, pola `run(ctx, getenv) error`, timeout server eksplisit, graceful shutdown. `/healthz` = liveness tanpa DB, `/readyz` = ping DB. Body `POST` adalah payload job yang divalidasi `Registry` (400 JSON rusak, 413 > 64 KiB, 422 melanggar skema, 500 lainnya); enqueue dalam `pgx.BeginFunc`; sukses `202` + `Location`; error `{"error": "..."}`. **SSE berbasis snapshot**: setiap event `job` berisi status lengkap hasil baca ulang tabel, sehingga reconnect tidak butuh replay. **Satu koneksi LISTEN per proses** (hub, di luar pool) → channel per klien ber-buffer 1 dengan kirim non-blocking; subscribe sebelum snapshot awal; heartbeat 15 s merangkap polling cadangan; deadline baca dihapus dan deadline tulis dipasang per event (`http.ResponseController`); stream ditutup saat status terminal dan klien wajib `EventSource.close()`. Portal `apps/web`: rewrite dev `/api/hello/*` → `HELLO_API_URL` (meniru Caddy, tanpa CORS; sejak LAB-ADR-012 hanya aktif di `next dev`), `compress: false`; kontrak TS ditulis tangan (`HelloApiError` membawa status HTTP) sampai OpenAPI diperkenalkan di API domain pertama; vitest.
 - **LAB-ADR-012: Image Docker multi-stage dan Compose lokal** (L0.6, `docs/decisions/LAB-ADR-012-docker-dan-compose-lokal.md`). Konteks build = root repo dengan `.dockerignore` (termasuk `**/*.so` agar wheel dibangun bersih); Dockerfile di samping kodenya; BuildKit cache mount; runtime non-root. **Go:** `golang` → `distroless/static-debian13:nonroot`, `CGO_ENABLED=0`, `-trimpath -buildvcs=false`, `buildinfo.Version` via `ARG VERSION`; image membawa `hello-api` + `jobqueuectl`; subperintah `hello-api healthcheck` untuk `HEALTHCHECK` (distroless tanpa curl). **Worker:** build dan runtime memakai image Python yang sama (`python:3.13-slim-trixie`, symlink venv); build memakai rustup (toolchain dari `rust-toolchain.toml`) + uv; `uv sync --no-install-workspace` lalu `--no-editable --package <worker>` membangun wheel release maturin; runtime hanya `.venv` + `contracts/jobs` (`LAB_CONTRACTS_DIR`). **Web:** Next.js `output: "standalone"` dengan `outputFileTracingRoot` = root monorepo, pnpm via `npm install -g` (Node ≥ 25 tanpa corepack), `HOSTNAME=0.0.0.0`; **rewrite `/api` hanya di `next dev`** karena rewrites dibekukan saat build. **Compose** `infrastructure/compose.yaml` (proyek `lab-local`): postgres → `migrate` sekali jalan (`jobqueuectl migrate`, `service_completed_successfully`) → api + worker (`init`, `stop_grace_period` 30 s, `restart: unless-stopped`); batas CPU/memori §4.2, `GOMEMLIMIT`, rotasi log. **Caddy memegang routing `/api` di container** (`Caddyfile.local`, `127.0.0.1:8000`): `/api/<proyek>/*` tanpa `encode` + `flush_interval -1`, sisanya ke web dengan `encode zstd gzip`.
+- **LAB-ADR-013: CI GitHub Actions dan GHCR** (L0.7, `docs/decisions/LAB-ADR-013-ci-github-actions.md`). Satu workflow `.github/workflows/ci.yml`: `changes` (path filter `dorny/paths-filter`) → `check` (**matrix dinamis** berisi bahasa yang berubah; setiap entri menjalankan `just ci-<bahasa>`, gabungannya = `just check`) → `images` → gerbang `ci-ok` (`if: always()`, satu-satunya required check). Anchor YAML: `justfile`/`ci.yml` memicu semua bahasa, perubahan Rust ikut memicu Python, prettier di job `web`. **Image** dibangun setelah check lulus atau di-skip, dengan filter path kedua per Dockerfile; PR hanya build, `main` push ke `ghcr.io/<owner>/applied-math-lab/<image>` dengan tag `sha-<7>` (deploy/rollback) + `main`, `VERSION=sha-<7>`, cache `type=gha`, `linux/amd64`; package publik. Toolchain dipin (runner `ubuntu-24.04`, `rust-toolchain.toml`, `go.mod`, `.node-version`, `packageManager`, versi `just`/`uv`/golangci-lint di `env`). **Keamanan:** `permissions` minimal (`packages: write` hanya di `images`), `persist-credentials: false`, nilai ekspresi lewat `env:` (anti-injeksi), action dipin ke commit SHA (`pinact`) + Dependabot `github-actions` mingguan (cooldown 7 hari, satu grup). **Ruleset `main`:** PR wajib, `ci-ok` wajib, tanpa force push/penghapusan/bypass. `typecheck` web = `next typegen && tsc --noEmit`.
 
 ### 2.4 Alur kerja algoritma: Python sebagai "meja laboratorium"
 
@@ -131,19 +138,20 @@ Pola ini diterapkan secara selektif supaya tidak menggandakan pekerjaan:
 
 ### 2.5 Stack pendukung
 
-| Kebutuhan           | Go                                                                        | Python                                    | Rust                            | Next.js                                         |
-| ------------------- | ------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------- | ----------------------------------------------- |
-| Tooling & lint      | golangci-lint v2 (gofmt, goimports, revive, dll.), go vet                 | ruff, mypy strict                         | rustfmt, clippy `-D warnings`   | eslint, `tsc --noEmit`, prettier                |
-| Pengujian           | `testing` (`-race`, `-timeout 3m`), testcontainers-go                     | pytest, Hypothesis, testcontainers-python | `cargo test`, proptest          | vitest                                          |
-| Akses DB            | pgx (pgxpool) + sqlc, migrasi goose (Provider API, embedded)              | psycopg 3                                 | —                               | —                                               |
-| Kontrak             | OpenAPI (oapi-codegen); JSON Schema job via santhosh-tekuri/jsonschema v6 | JSON Schema (`jsonschema`) / Pydantic     | serde                           | openapi-typescript (hello: tipe ditulis tangan) |
-| HTTP                | `net/http` + `ServeMux` (LAB-ADR-011)                                     | —                                         | —                               | EventSource (SSE)                               |
-| Profiling           | pprof                                                                     | cProfile                                  | criterion, flamegraph           | —                                               |
-| Workspace           | satu `go.mod` di root (LAB-ADR-008)                                       | uv workspace                              | Cargo workspace                 | pnpm workspace                                  |
-| Jembatan            | —                                                                         | maturin (build backend)                   | PyO3 + rust-numpy (LAB-ADR-009) | —                                               |
-| Image (LAB-ADR-012) | distroless static nonroot                                                 | python slim + `.venv`                     | wheel maturin di tahap build    | Next.js standalone                              |
+| Kebutuhan           | Go                                                                        | Python                                    | Rust                            | Next.js                                           |
+| ------------------- | ------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------- | ------------------------------------------------- |
+| Tooling & lint      | golangci-lint v2 (gofmt, goimports, revive, dll.), go vet                 | ruff, mypy strict                         | rustfmt, clippy `-D warnings`   | eslint, `next typegen` + `tsc --noEmit`, prettier |
+| Pengujian           | `testing` (`-race`, `-timeout 3m`), testcontainers-go                     | pytest, Hypothesis, testcontainers-python | `cargo test`, proptest          | vitest                                            |
+| Akses DB            | pgx (pgxpool) + sqlc, migrasi goose (Provider API, embedded)              | psycopg 3                                 | —                               | —                                                 |
+| Kontrak             | OpenAPI (oapi-codegen); JSON Schema job via santhosh-tekuri/jsonschema v6 | JSON Schema (`jsonschema`) / Pydantic     | serde                           | openapi-typescript (hello: tipe ditulis tangan)   |
+| HTTP                | `net/http` + `ServeMux` (LAB-ADR-011)                                     | —                                         | —                               | EventSource (SSE)                                 |
+| Profiling           | pprof                                                                     | cProfile                                  | criterion, flamegraph           | —                                                 |
+| Workspace           | satu `go.mod` di root (LAB-ADR-008)                                       | uv workspace                              | Cargo workspace                 | pnpm workspace                                    |
+| Jembatan            | —                                                                         | maturin (build backend)                   | PyO3 + rust-numpy (LAB-ADR-009) | —                                                 |
+| Image (LAB-ADR-012) | distroless static nonroot                                                 | python slim + `.venv`                     | wheel maturin di tahap build    | Next.js standalone                                |
+| CI (LAB-ADR-013)    | `just ci-go`                                                              | `just ci-python`                          | `just ci-rust`                  | `just ci-web` (+ prettier)                        |
 
-Prettier di root juga memformat Markdown, JSON, dan YAML. Semua pemeriksaan dijalankan lewat `just` (`just fmt`, `just lint`, `just test`, `just check`). Postgres dev: `just db-up` (`infrastructure/compose.dev.yaml`, PostgreSQL 18); alat antrean dev: `just jobq <migrate|status|enqueue|show>`. Walking skeleton dev: `just api-hello` (Go :8080), `just worker-hello`, `just dev-web` (Next.js :3000). Stack container lokal: `just stack-up` (semua lapisan di balik Caddy `http://localhost:8000`), `just stack-ps`, `just stack-logs`, `just stack-down`.
+Prettier di root juga memformat Markdown, JSON, dan YAML. Semua pemeriksaan dijalankan lewat `just` (`just fmt`, `just lint`, `just test`, `just check`); CI menjalankan resep per bahasa `just ci-<bahasa>` yang gabungannya sama dengan `just check`. Postgres dev: `just db-up` (`infrastructure/compose.dev.yaml`, PostgreSQL 18); alat antrean dev: `just jobq <migrate|status|enqueue|show>`. Walking skeleton dev: `just api-hello` (Go :8080), `just worker-hello`, `just dev-web` (Next.js :3000). Stack container lokal: `just stack-up` (semua lapisan di balik Caddy `http://localhost:8000`), `just stack-ps`, `just stack-logs`, `just stack-down`.
 
 Kontrak dibagi dua: **OpenAPI** untuk Next.js ↔ Go, dan **JSON Schema** untuk payload job Go ↔ Python (diputuskan di L0.4, LAB-ADR-010).
 
@@ -151,6 +159,9 @@ Kontrak dibagi dua: **OpenAPI** untuk Next.js ↔ Go, dan **JSON Schema** untuk 
 
 ```text
 applied-math-lab/
+├── .github/
+│   ├── workflows/ci.yml        # CI ✔: changes → check (matrix) → images (GHCR) → ci-ok (LAB-ADR-013)
+│   └── dependabot.yml          # update SHA action mingguan ✔
 ├── apps/
 │   └── web/                    # Next.js lab portal ✔: /, /hello; Dockerfile ✔; nanti /mealops, /dengue, /pangan
 ├── services/
@@ -175,7 +186,7 @@ applied-math-lab/
 ├── experiments/                # konfigurasi dan hasil benchmark
 ├── infrastructure/             # compose.dev.yaml ✔, compose.yaml ✔ (stack lokal), Caddyfile.local ✔, Caddyfile (VPS), backup/
 ├── docs/
-│   ├── decisions/              # ADR lab dan proyek (LAB-ADR-008 ✔, 009 ✔, 010 ✔, 011 ✔, 012 ✔)
+│   ├── decisions/              # ADR lab dan proyek (LAB-ADR-008 ✔, 009 ✔, 010 ✔, 011 ✔, 012 ✔, 013 ✔)
 │   ├── mathematics/            # mealops/, dengue/, pangan/
 │   └── PROGRESS.md             # log handoff antar-thread (saat ini di Project knowledge)
 ├── .cargo/config.toml          # PYO3_PYTHON → .venv/bin/python ✔
@@ -185,14 +196,14 @@ applied-math-lab/
 ├── Cargo.toml / Cargo.lock     # Cargo workspace (members: packages/rust/*, services/*/core, services/*/core-py)
 ├── pyproject.toml / uv.lock    # uv workspace root (package = false) + config ruff/mypy/pytest
 ├── package.json / pnpm-workspace.yaml / pnpm-lock.yaml   # pnpm workspace (apps/*), satu lockfile
-├── justfile                    # setup, fmt, lint, test, check, py-ext, db-*, jobq, worker-hello, api-hello, dev-web, stack-*
+├── justfile                    # setup(-py/-node), fmt, lint, test, ci-*, check, py-ext, db-*, jobq, worker-hello, api-hello, dev-web, stack-*
 ├── rust-toolchain.toml / .python-version / .node-version
 ├── .golangci.yml / .prettierignore / .editorconfig / .gitattributes / .gitignore
 ├── README.md
 └── PROJECT_CONTEXT.md
 ```
 
-✔ = sudah ada di repo. Buat direktori hanya ketika sudah ada isi nyatanya. Saat crate atau worker pertama dibuat, tambahkan `services/*/core` dan `services/*/core-py` ke `members` Cargo; `services/*/worker` dan `services/*/core-py` ke `members` uv; path binding baru ke resep `py-ext`, path `python/` binding dan `services/*/worker/src` ke `lint-py` (mypy), dan direktori test ke `testpaths` pytest. (Bagian worker sudah dilakukan untuk `services/hello/worker` di L0.4.) API baru memakai pola `services/hello/api` (LAB-ADR-011) dan menambahkan resep `api-<proyek>` serta rewrite dev `/api/<proyek>/*` di `apps/web/next.config.ts`. Untuk container (LAB-ADR-012): Dockerfile API dan worker per proyek, service `migrate` sendiri, entri `/api/<proyek>/*` di Caddyfile, dan manifest anggota workspace baru disalin di tahap dependensi Dockerfile worker.
+✔ = sudah ada di repo. Buat direktori hanya ketika sudah ada isi nyatanya. Saat crate atau worker pertama dibuat, tambahkan `services/*/core` dan `services/*/core-py` ke `members` Cargo; `services/*/worker` dan `services/*/core-py` ke `members` uv; path binding baru ke resep `py-ext`, path `python/` binding ke `lint-py` (mypy; `services/*/worker/src` sudah tercakup glob), dan direktori test ke `testpaths` pytest. (Bagian worker sudah dilakukan untuk `services/hello/worker` di L0.4.) API baru memakai pola `services/hello/api` (LAB-ADR-011) dan menambahkan resep `api-<proyek>` serta rewrite dev `/api/<proyek>/*` di `apps/web/next.config.ts`. Untuk container (LAB-ADR-012): Dockerfile API dan worker per proyek, service `migrate` sendiri, entri `/api/<proyek>/*` di Caddyfile, dan manifest anggota workspace baru disalin di tahap dependensi Dockerfile worker. Untuk CI (LAB-ADR-013): path baru masuk filter bahasa di `ci.yml` bila tidak tercakup glob yang ada, setiap image baru mendapat filter image dan cabang `case` Dockerfile di job `images`.
 
 ## 4. Infrastruktur dan Deployment
 
@@ -270,19 +281,20 @@ Batas CPU sengaja _overcommit_. Ketiga worker jarang aktif bersamaan, dan worker
 ### 4.5 CI/CD
 
 ```text
-git push ──► GitHub Actions (path filter per proyek)
-             ├─ lint + test: Go, Python, Rust, Next.js (via `just check`)
-             ├─ build image multi-stage (Dockerfile LAB-ADR-012, konteks root repo)
-             │    Go: golang → distroless static nonroot (VERSION via build-arg)
-             │    Worker: python + rustup + uv (wheel maturin) → python-slim (.venv saja)
-             │    Web: node → standalone
-             └─ push ke GitHub Container Registry
-                      │
-                      ▼ SSH ke VPS
-             docker compose pull && docker compose up -d
+git push / PR ──► GitHub Actions: .github/workflows/ci.yml (LAB-ADR-013)
+                  ├─ changes : path filter → daftar bahasa + daftar image yang berubah
+                  ├─ check   : matrix dinamis, satu runner per bahasa → just ci-<bahasa>
+                  │            (go | rust | python | web; Rust ikut memicu Python)
+                  ├─ images  : setelah check lulus; Dockerfile LAB-ADR-012, konteks root repo
+                  │            PR: build saja · main: push ke GHCR
+                  │            tag sha-<7> + main, VERSION=sha-<7>, cache type=gha
+                  └─ ci-ok   : gerbang tunggal (required check di ruleset main)
+                                     │
+                                     ▼ (L0.8) SSH ke VPS
+                  docker compose pull && docker compose up -d   (image tag sha-<7>)
 ```
 
-Image di-build di CI, tidak pernah di VPS. Test integrasi Go dan Python membutuhkan Docker (testcontainers) di runner CI. Stack lokal (`infrastructure/compose.yaml`) membangun image yang sama dari Dockerfile yang sama; compose VPS (L0.8) memakai image dari GHCR.
+Image di-build di CI, tidak pernah di VPS. Test integrasi Go dan Python memakai Docker (testcontainers) yang sudah tersedia di runner GitHub. Stack lokal (`infrastructure/compose.yaml`) membangun image yang sama dari Dockerfile yang sama; compose VPS (L0.8) memakai image dari GHCR (`ghcr.io/adrianus-bagas/applied-math-lab/<image>`, publik, tanpa token). Action dipin ke commit SHA dan diperbarui Dependabot; `main` dilindungi ruleset (PR wajib, `ci-ok` wajib).
 
 ### 4.6 Kebersihan produksi
 
@@ -395,7 +407,8 @@ Berlaku untuk Next.js, area keahlian pengguna. Pengguna mengimplementasikan; Cla
 - **Satu sub-milestone = satu thread Claude.** Sub-milestone dibatasi **≤ 10 jam** dan bisa dikerjakan dalam beberapa sesi di thread yang sama.
 - Simpan `PROJECT_CONTEXT.md` (lab), `PROJECT_CONTEXT` MealOps, `docs/PROGRESS.md`, dan `docs/mathematics/<proyek>/model.md` di Project knowledge. Jangan menempelkan ulang konteks di setiap thread.
 - **Membuka thread** dengan satu baris: `Thread L0.1 — Lingkungan dev. Status terakhir: lihat PROGRESS.md.`
-- **Menutup thread** dengan catatan handoff (≤ 150 kata) yang ditambahkan Claude langsung ke `PROGRESS.md` di Project knowledge, memperbarui tanda status di §7, lalu commit di akhir thread:
+- **Kerja di branch** (sejak L0.7): setiap thread dikerjakan di branch sendiri, misalnya `l0.8-vps`. `main` dilindungi ruleset (PR wajib, `ci-ok` wajib), jadi push langsung ke `main` ditolak.
+- **Menutup thread** dengan catatan handoff (≤ 150 kata) yang ditambahkan Claude langsung ke `PROGRESS.md` di Project knowledge, memperbarui tanda status di §7, lalu commit di branch thread, PR, tunggu `ci-ok` hijau, dan **squash merge** ke `main`:
 
 ```markdown
 ## [MO-1.2] Model A CVRPTW — YYYY-MM-DD
@@ -424,7 +437,7 @@ Konvensi: format `nomor Nama (jam, mode)`. ⭐ menandai titik utama belajar teor
 | ✅ L0.4 Antrean job: Go enqueue, Python worker `SKIP LOCKED` + `LISTEN/NOTIFY`, heartbeat, kontrak JSON Schema (6, T)        |
 | ✅ L0.5 Kerangka Next.js lab portal + Go API hello (dasar Go: modul, paket, `net/http`) + progres via SSE (4, T)             |
 | ✅ L0.6 Docker multi-stage (wheel maturin), Compose lokal untuk semua lapisan (5, T)                                         |
-| L0.7 CI GitHub Actions: matriks 4 bahasa, path filter, push ke GHCR (4, T)                                                   |
+| ✅ L0.7 CI GitHub Actions: matriks 4 bahasa, path filter, push ke GHCR (4, T)                                                |
 | L0.8 VPS: hardening, Caddy, deploy pertama end-to-end "hello lab" (6, T)                                                     |
 | L0.9 ⭐ Latihan Rust lewat soal matematika: ownership, borrowing, struct, trait, generics, iterator, error (10, L)           |
 | L0.10 ⭐ Latihan Python numerik: vektorisasi NumPy, SciPy, aritmetika floating-point dan toleransi tes (6, L)                |
@@ -537,7 +550,7 @@ Alokasi: **10–15 jam per minggu**, dengan buffer 20%.
 - 2 sesi hari kerja × 1,5–2 jam: teori, formulasi, review (cocok untuk sub-milestone ⭐ dan Mode Latihan).
 - 1 sesi akhir pekan × 5–8 jam: implementasi, setup, debugging (cocok untuk Mode Tuntun).
 - Satu sub-milestone biasanya selesai dalam 1–3 sesi.
-- Setiap 4–6 minggu, bandingkan jam aktual dengan estimasi di `PROGRESS.md` dan kalibrasi ulang timeline. (Catatan per L0.6: L0.1–L0.6 selesai dalam ~13,25 jam dari estimasi 29 jam.)
+- Setiap 4–6 minggu, bandingkan jam aktual dengan estimasi di `PROGRESS.md` dan kalibrasi ulang timeline. (Catatan per L0.7: L0.1–L0.7 selesai dalam ~15 jam dari estimasi 33 jam.)
 
 ## 9. Keputusan Terbuka
 
@@ -554,4 +567,4 @@ Alokasi: **10–15 jam per minggu**, dengan buffer 20%.
 
 ## 10. Konteks Singkat untuk Sesi Berikutnya
 
-> Kita membangun **Applied Math Lab**: tiga software portofolio berbasis matematika terapan untuk masalah Indonesia, yaitu **MealOps** (optimasi dapur massal dan distribusi makanan perishable: VRP terintegrasi penjadwalan produksi dengan batas holding time; ALNS + GA memetic; Monte Carlo), **DengueSim** (SEIR–SEI; R₀; MCMC; kontrol optimal Pontryagin), dan **Harga Pangan** (state-space + Kalman; regime switching; value iteration untuk stok penyangga). **Arsitektur seragam:** Next.js (satu lab portal) → Go API (auth, CRUD, orkestrasi job, AI gateway) → antrean job PostgreSQL (`SKIP LOCKED`) → Python worker (modelling, validasi, analisis) → Rust core via PyO3/maturin (hot loop; bisa juga WASM). Go tidak memanggil Rust secara langsung. **Jembatan (LAB-ADR-009):** core Rust murni + crate binding `-py` (PyO3 abi3, rust-numpy, `py.detach`), stub `.pyi`, `just py-ext` sebelum pytest, toleransi oracle dari analisis galat. **Antrean (LAB-ADR-010):** implementasi sendiri, `lab_jobs` + paket Go `jobqueue` (`Enqueue` dalam `pgx.Tx`) + paket Python `lab_worker`; lock untuk klaim, lease + fencing `attempts` untuk menjalankan; NOTIFY petunjuk, tabel kebenaran; trigger NOTIFY `lab_job_progress` saat status/progres berubah; heartbeat/reaper at-least-once; watchdog timeout; worker crash-only; kontrak JSON Schema `contracts/jobs/<kind>.v<N>.schema.json`. **API + SSE (LAB-ADR-011):** Go `net/http` + `ServeMux`, pola `run`, healthz (liveness) / readyz (DB); SSE berbasis snapshot dengan satu koneksi LISTEN per proses (hub), heartbeat 15 s + polling cadangan; portal `apps/web` dengan rewrite `/api` hanya di dev; walking skeleton `services/hello/{api,worker}` + halaman `/hello`. **Container (LAB-ADR-012):** Dockerfile multi-stage per layanan dengan konteks root repo (Go → distroless + subperintah `healthcheck`; worker → wheel maturin via `uv sync --no-editable`, runtime hanya `.venv`; web → Next.js standalone); `infrastructure/compose.yaml` dengan service `migrate` sekali jalan dan Caddy pemegang routing `/api` (`just stack-up`, `:8000`). Pola algoritma: prototipe di Python → port ke Rust → Python sebagai test oracle; di MealOps, validator Python memeriksa semua solusi Rust secara independen. **Repo:** monorepo `github.com/Adrianus-Bagas/applied-math-lab` (LAB-ADR-008): satu `go.mod` di root, workspace Cargo/uv/pnpm, toolchain dipin, `just check` = pemeriksaan CI. **Infra:** VPS 2 vCPU / 8 GB / 100 GB NVMe / 8 TB bandwidth (CPU adalah batas utama; komputasi berat offline, hasil disajikan online; satu slot job berat untuk seluruh lab), Docker Compose, Caddy, PostgreSQL 18 + PostGIS + TimescaleDB, CI GitHub Actions → GHCR. **Dev:** WSL Ubuntu, Docker Engine di WSL, Zed. **Model matematis MealOps** mengikuti `PROJECT_CONTEXT` MealOps v3.1 §8–10. **Kolaborasi:** _Tuntun_ (setup environment, proyek, deployment: jelaskan alasan dengan bahasa sederhana, beri langkah dan file lengkap), _Latihan_ (logika bisnis dan matematika: konsep → tugas kecil dengan kerangka dan tes → pengguna implementasi → review), _Mandiri_ (frontend). Bahasa diajarkan just-in-time; komentar kode dalam Bahasa Indonesia; status roadmap ditandai ✅/⏳; `PROGRESS.md` diperbarui dan commit dilakukan di akhir setiap thread. **Roadmap:** L0 → MealOps MVP → DengueSim → Harga Pangan → L-Final → MealOps pasca-MVP; satu sub-milestone (≤ 10 jam) per thread; 10–15 jam/minggu. AI hanya LLM: mengusulkan dan menjelaskan, solver dan validator yang memutuskan.
+> Kita membangun **Applied Math Lab**: tiga software portofolio berbasis matematika terapan untuk masalah Indonesia, yaitu **MealOps** (optimasi dapur massal dan distribusi makanan perishable: VRP terintegrasi penjadwalan produksi dengan batas holding time; ALNS + GA memetic; Monte Carlo), **DengueSim** (SEIR–SEI; R₀; MCMC; kontrol optimal Pontryagin), dan **Harga Pangan** (state-space + Kalman; regime switching; value iteration untuk stok penyangga). **Arsitektur seragam:** Next.js (satu lab portal) → Go API (auth, CRUD, orkestrasi job, AI gateway) → antrean job PostgreSQL (`SKIP LOCKED`) → Python worker (modelling, validasi, analisis) → Rust core via PyO3/maturin (hot loop; bisa juga WASM). Go tidak memanggil Rust secara langsung. **Jembatan (LAB-ADR-009):** core Rust murni + crate binding `-py` (PyO3 abi3, rust-numpy, `py.detach`), stub `.pyi`, `just py-ext` sebelum pytest, toleransi oracle dari analisis galat. **Antrean (LAB-ADR-010):** implementasi sendiri, `lab_jobs` + paket Go `jobqueue` (`Enqueue` dalam `pgx.Tx`) + paket Python `lab_worker`; lock untuk klaim, lease + fencing `attempts` untuk menjalankan; NOTIFY petunjuk, tabel kebenaran; trigger NOTIFY `lab_job_progress` saat status/progres berubah; heartbeat/reaper at-least-once; watchdog timeout; worker crash-only; kontrak JSON Schema `contracts/jobs/<kind>.v<N>.schema.json`. **API + SSE (LAB-ADR-011):** Go `net/http` + `ServeMux`, pola `run`, healthz (liveness) / readyz (DB); SSE berbasis snapshot dengan satu koneksi LISTEN per proses (hub), heartbeat 15 s + polling cadangan; portal `apps/web` dengan rewrite `/api` hanya di dev; walking skeleton `services/hello/{api,worker}` + halaman `/hello`. **Container (LAB-ADR-012):** Dockerfile multi-stage per layanan dengan konteks root repo (Go → distroless + subperintah `healthcheck`; worker → wheel maturin via `uv sync --no-editable`, runtime hanya `.venv`; web → Next.js standalone); `infrastructure/compose.yaml` dengan service `migrate` sekali jalan dan Caddy pemegang routing `/api` (`just stack-up`, `:8000`). **CI (LAB-ADR-013):** satu workflow `ci.yml` — path filter → matrix dinamis `just ci-<bahasa>` (gabungannya = `just check`) → image ke GHCR dari `main` (tag `sha-<7>` + `main`, package publik) → gerbang `ci-ok`; action dipin ke SHA + Dependabot; `main` dilindungi ruleset (kerja di branch, PR, squash merge). Pola algoritma: prototipe di Python → port ke Rust → Python sebagai test oracle; di MealOps, validator Python memeriksa semua solusi Rust secara independen. **Repo:** monorepo `github.com/Adrianus-Bagas/applied-math-lab` (LAB-ADR-008): satu `go.mod` di root, workspace Cargo/uv/pnpm, toolchain dipin, `just check` = pemeriksaan CI. **Infra:** VPS 2 vCPU / 8 GB / 100 GB NVMe / 8 TB bandwidth (CPU adalah batas utama; komputasi berat offline, hasil disajikan online; satu slot job berat untuk seluruh lab), Docker Compose, Caddy, PostgreSQL 18 + PostGIS + TimescaleDB, CI GitHub Actions → GHCR. **Dev:** WSL Ubuntu, Docker Engine di WSL, Zed. **Model matematis MealOps** mengikuti `PROJECT_CONTEXT` MealOps v3.1 §8–10. **Kolaborasi:** _Tuntun_ (setup environment, proyek, deployment: jelaskan alasan dengan bahasa sederhana, beri langkah dan file lengkap), _Latihan_ (logika bisnis dan matematika: konsep → tugas kecil dengan kerangka dan tes → pengguna implementasi → review), _Mandiri_ (frontend). Bahasa diajarkan just-in-time; komentar kode dalam Bahasa Indonesia; status roadmap ditandai ✅/⏳; `PROGRESS.md` diperbarui dan PR di-squash merge di akhir setiap thread. **Roadmap:** L0 → MealOps MVP → DengueSim → Harga Pangan → L-Final → MealOps pasca-MVP; satu sub-milestone (≤ 10 jam) per thread; 10–15 jam/minggu. AI hanya LLM: mengusulkan dan menjelaskan, solver dan validator yang memutuskan.
