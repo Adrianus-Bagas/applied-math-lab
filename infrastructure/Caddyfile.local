@@ -1,0 +1,22 @@
+# Caddy lokal: meniru routing VPS (L0.8) tanpa TLS.
+{
+	auto_https off
+	admin off
+}
+
+:8000 {
+	# API: tanpa encode (kompresi menahan stream SSE), flush setiap tulisan.
+	handle /api/hello/* {
+		reverse_proxy hello-api:8080 {
+			flush_interval -1
+		}
+	}
+
+	# Sisanya ke portal Next.js; kompresi dilakukan di sini, bukan di Next.
+	handle {
+		encode zstd gzip
+		reverse_proxy web:3000
+	}
+
+	log
+}

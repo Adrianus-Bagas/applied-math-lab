@@ -21,6 +21,10 @@ import (
 )
 
 func main() {
+	// Mode healthcheck untuk HEALTHCHECK Docker (image distroless tanpa curl).
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		os.Exit(healthcheckMain(os.Getenv))
+	}
 	// ctx dibatalkan saat proses menerima Ctrl-C (SIGINT) atau SIGTERM dari Docker.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	err := run(ctx, os.Getenv)

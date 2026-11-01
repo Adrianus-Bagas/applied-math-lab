@@ -1,0 +1,30 @@
+# Konteks build Docker = root repo. Semua yang dikecualikan di sini tidak
+# dikirim ke Docker, sehingga build cepat dan tidak tercemar artefak lokal.
+
+# VCS dan editor
+.git
+.github
+.zed
+.vscode
+
+# Artefak build dan cache tiap bahasa
+**/node_modules
+**/.next
+**/target
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.hypothesis
+
+# .so hasil `maturin develop` di laptop: image harus membangun wheel sendiri
+**/*.so
+
+# Data dan rahasia
+.env
+.env.*
+!.env.example
+datasets
+experiments

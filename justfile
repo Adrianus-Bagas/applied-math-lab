@@ -116,3 +116,22 @@ lint-web:
 
 test-web:
     pnpm --filter web test
+
+# ---------- Stack Docker lokal (L0.6) ----------
+compose := "docker compose -f infrastructure/compose.yaml"
+
+# Bangun semua image lalu jalankan seluruh stack di :8000
+stack-up:
+    {{ compose }} up -d --build
+
+# Hentikan stack (data Postgres tetap ada di volume)
+stack-down:
+    {{ compose }} down
+
+# Status container dan healthcheck
+stack-ps:
+    {{ compose }} ps -a
+
+# Ikuti log, misalnya: just stack-logs hello-worker
+stack-logs *services:
+    {{ compose }} logs -f {{ services }}

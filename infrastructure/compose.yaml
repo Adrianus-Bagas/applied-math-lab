@@ -1,0 +1,109 @@
+# Stack lokal semua lapisan: Caddy → web + hello-api → Postgres ← hello-worker.
+# Dijalankan lewat `just stack-up`. Compose VPS (L0.8) memakai image GHCR.
+name: lab-local
+
+x-db-url: &db-url postgres://lab:lab@postgres:5432/lab_hello?sslmode=disable
+
+# Rotasi log agar disk tidak penuh (§4.4).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-hello-api-build: &hello-api-build
+  context: ..
+  dockerfile: services/hello/api/Dockerfile
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: lab # hanya lokal; VPS memakai .env (L0.8)
+      POSTGRES_DB: lab_hello
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab -d lab_hello"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    cpus: 0.5
+    mem_limit: 1536m
+    restart: unless-stopped
+    logging: *logging
+
+  # Sekali jalan: menerapkan migrasi jobqueue lalu keluar dengan kode 0.
+  migrate:
+    image: applied-math-lab/hello-api:local
+    build: *hello-api-build
+    entrypoint: ["/usr/local/bin/jobqueuectl", "migrate"]
+    environment:
+      DATABASE_URL: *db-url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    logging: *logging
+
+  hello-api:
+    image: applied-math-lab/hello-api:local
+    build: *hello-api-build
+    environment:
+      DATABASE_URL: *db-url
+      HELLO_API_ADDR: ":8080"
+      GOMEMLIMIT: 100MiB # di bawah batas container 128 MB (§4.2)
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    cpus: 0.25
+    mem_limit: 128m
+    restart: unless-stopped
+    logging: *logging
+
+  hello-worker:
+    image: applied-math-lab/hello-worker:local
+    build:
+      context: ..
+      dockerfile: services/hello/worker/Dockerfile
+    environment:
+      DATABASE_URL: *db-url
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    init: true # tini sebagai PID 1: meneruskan sinyal, membersihkan proses zombie
+    stop_grace_period: 30s
+    cpus: 1.0
+    mem_limit: 768m
+    restart: unless-stopped # wajib untuk worker crash-only (LAB-ADR-010)
+    logging: *logging
+
+  web:
+    image: applied-math-lab/web:local
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    cpus: 0.5
+    mem_limit: 512m
+    restart: unless-stopped
+    logging: *logging
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "127.0.0.1:8000:8000" # hanya loopback
+    volumes:
+      - ./Caddyfile.local:/etc/caddy/Caddyfile:ro
+    depends_on:
+      hello-api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    cpus: 0.25
+    mem_limit: 128m
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  pgdata:
