@@ -13,6 +13,11 @@ import (
 // Notifikasi hanya petunjuk untuk membangunkan worker: tabel lab_jobs adalah sumber kebenaran.
 const NotifyChannel = "lab_jobs"
 
+// ProgressChannel adalah kanal LISTEN/NOTIFY untuk pendengar progres (SSE);
+// payload-nya id job. Dikirim oleh trigger lab_jobs_progress_notify setiap
+// kali status atau progres berubah.
+const ProgressChannel = "lab_job_progress"
+
 const (
 	defaultMaxAttempts = 3
 	defaultTimeoutS    = 600

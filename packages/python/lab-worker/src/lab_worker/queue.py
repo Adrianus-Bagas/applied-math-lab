@@ -89,7 +89,7 @@ def heartbeat(conn: Conn, job: ClaimedJob, worker_id: str) -> bool:
 def report_progress(
     conn: Conn, job: ClaimedJob, worker_id: str, progress: Mapping[str, Any]
 ) -> bool:
-    """Simpan progres dan beri tahu pendengar (SSE di L0.5) lewat PROGRESS_CHANNEL."""
+    """Simpan progres; trigger DB mengirim NOTIFY ke PROGRESS_CHANNEL."""
     with conn.transaction():
         cur = conn.execute(
             """
@@ -102,7 +102,6 @@ def report_progress(
         if cur.rowcount != 1:
             return False
         # Notifikasi ikut transaksi: hanya terkirim bila update di atas ter-commit.
-        conn.execute("SELECT pg_notify(%s, %s)", (PROGRESS_CHANNEL, str(job.id)))
     return True
 
 

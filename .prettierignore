@@ -1,2 +1,4 @@
 pnpm-lock.yaml
 datasets/
+apps/web/.next
+apps/web/next-env.d.ts

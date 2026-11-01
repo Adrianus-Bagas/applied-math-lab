@@ -101,3 +101,18 @@ jobq *args:
 # Jalankan worker hello (Ctrl+C untuk berhenti rapi)
 worker-hello:
     uv run python -m hello_worker
+
+# Jalankan hello-api di :8080 (butuh `just db-up`)
+api-hello:
+    go run ./services/hello/api
+
+# Jalankan lab portal di :3000 (rewrite /api/hello → hello-api :8080)
+dev-web:
+    pnpm --filter web dev
+
+lint-web:
+    pnpm --filter web lint
+    pnpm --filter web typecheck
+
+test-web:
+    pnpm --filter web test
