@@ -25,7 +25,8 @@ Sampai L0.6, semua pemeriksaan hanya dijalankan di laptop (`just check`) dan ima
    - Pengaturan repo: izin default `GITHUB_TOKEN` read-only.
    - `concurrency` membatalkan run lama di branch/PR yang sama, kecuali di `main`.
 8. **Ruleset branch `main`:** wajib pull request (0 approval), `ci-ok` wajib lulus, tanpa force push dan penghapusan, tanpa bypass. Alur penutupan thread menjadi branch → PR → _squash merge_.
-9. **`typecheck` web = `next typegen && tsc --noEmit`.** Tipe rute Next.js (`LayoutProps`, `PageProps`) dibangkitkan ke `.next/types/`, yang tidak ada di clone bersih. Sebelumnya typecheck lokal diam-diam bergantung pada sisa `next dev`.
+9. **Versi build diverifikasi berlapis.** Verifikasi L0.7 menemukan bahwa `buildinfo.Version` tidak pernah tersuntik sejak L0.6: tidak ada kode yang mengimpor `buildinfo`, sehingga linker membuang paketnya dan `-X` diabaikan **tanpa error**. (`go version -m` juga tidak bisa dipakai untuk memeriksa, karena Go tidak mencatat `-ldflags` di binary bila `-trimpath` aktif.) Perbaikan: (a) subperintah `hello-api version` (JSON `buildinfo.Get()`) dan versi di log start; (b) test Go `TestVersionLdflags` membangun binary dengan `-X` sungguhan lalu menjalankannya, menangkap path salah atau paket terbuang di job `check (go)`, sebelum image dibangun; (c) smoke test di job `images` (`docker run … version` harus sama dengan `sha-<7>`; di PR image di-`load` ke runner), menangkap build-arg yang tidak sampai ke `go build` di Dockerfile.
+10. **`typecheck` web = `next typegen && tsc --noEmit`.** Tipe rute Next.js (`LayoutProps`, `PageProps`) dibangkitkan ke `.next/types/`, yang tidak ada di clone bersih. Sebelumnya typecheck lokal diam-diam bergantung pada sisa `next dev`.
 
 ## Alternatif yang ditolak
 
@@ -52,6 +53,8 @@ Sampai L0.6, semua pemeriksaan hanya dijalankan di laptop (`just check`) dan ima
 - PR image: tiga `image (…)` di-build tanpa push; setelah merge, tiga package muncul di GHCR dengan tag `main` dan `sha-…`; `docker pull` anonim berhasil.
 - Uji negatif (PR sengaja merusak format Go, tidak di-merge): hanya `check (go)` yang berjalan dan merah, `image (hello-api)` di-skip, `ci-ok` merah, merge terkunci.
 - Push langsung ke `main` ditolak ruleset.
+- PR berisi Markdown saja hanya menjalankan `check (web)`, tanpa image.
+- Label `org.opencontainers.image.revision` image `main` = commit `main`; `hello-api version` di image = `sha-<7>` (setelah perbaikan keputusan 9).
 
 ## Pertanyaan terbuka
 
