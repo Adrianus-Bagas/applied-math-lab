@@ -1,0 +1,18 @@
+# Dependabot: memperbarui action yang dipin ke SHA (komentar "# vX.Y.Z" ikut diperbarui).
+# Ekosistem lain (cargo, uv, npm, gomod, docker) sengaja belum diaktifkan: lihat LAB-ADR-013.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Asia/Jakarta
+    cooldown:
+      # Tunggu 7 hari setelah rilis; versi berbahaya biasanya ketahuan dalam beberapa hari.
+      default-days: 7
+    groups:
+      github-actions:
+        patterns: ["*"] # satu PR berisi semua update action, bukan satu PR per action
+    commit-message:
+      prefix: ci
