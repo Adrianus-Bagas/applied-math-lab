@@ -1,18 +1,19 @@
-# CI lab: lint + test per bahasa, hanya untuk bahasa yang berubah.
-# Setiap job memanggil resep `just ci-<bahasa>`; gabungannya = `just check` (LAB-ADR-008).
+# CI lab: lint + test per bahasa, hanya untuk bahasa yang berubah, lalu build image.
+# Setiap job check memanggil `just ci-<bahasa>`; gabungannya = `just check` (LAB-ADR-008).
+# Image (LAB-ADR-012) dibangun setelah check lulus; push ke GHCR hanya dari main.
 name: ci
 
 on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch: # jalankan manual: selalu memeriksa keempat bahasa
+  workflow_dispatch: # jalankan manual: semua bahasa dan semua image
 
 # Hak minimal; job yang butuh lebih menambahkannya sendiri.
 permissions:
   contents: read
 
-# Run lama di branch/PR yang sama dibatalkan; di main setiap commit tetap diperiksa.
+# Run lama di branch/PR yang sama dibatalkan; di main setiap commit tetap diproses.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -33,15 +34,17 @@ jobs:
       contents: read
       pull-requests: read # paths-filter membaca daftar file PR lewat API
     outputs:
-      langs: ${{ steps.langs.outputs.langs }}
+      langs: ${{ steps.lists.outputs.langs }}
+      images: ${{ steps.lists.outputs.images }}
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+
+      # Filter bahasa: nama filter = akhiran resep `just ci-<nama>`.
       - uses: dorny/paths-filter@v4
-        id: filter
+        id: langs
         with:
-          # Nama filter = nama bahasa = akhiran resep `just ci-<nama>`.
           filters: |
             go:
               - &shared [justfile, .github/workflows/ci.yml]
@@ -81,17 +84,53 @@ jobs:
               - "**/*.md"
               - "**/*.json"
               - "**/*.{yml,yaml}"
-      - name: susun daftar bahasa
-        id: langs
+
+      # Filter image: nama filter = nama image di GHCR. Isinya = semua yang disalin Dockerfile-nya.
+      - uses: dorny/paths-filter@v4
+        id: images
+        with:
+          filters: |
+            hello-api:
+              - &dockershared [.dockerignore, .github/workflows/ci.yml]
+              - go.mod
+              - go.sum
+              - "packages/go/**"
+              - "contracts/**"
+              - "services/hello/api/**"
+            hello-worker:
+              - *dockershared
+              - pyproject.toml
+              - uv.lock
+              - .python-version
+              - Cargo.toml
+              - Cargo.lock
+              - rust-toolchain.toml
+              - ".cargo/**"
+              - "packages/python/**"
+              - "packages/rust/**"
+              - "contracts/jobs/**"
+              - "services/hello/worker/**"
+            web:
+              - *dockershared
+              - package.json
+              - pnpm-lock.yaml
+              - pnpm-workspace.yaml
+              - .node-version
+              - "apps/web/**"
+
+      - name: susun daftar bahasa dan image
+        id: lists
         env:
           EVENT: ${{ github.event_name }}
-          CHANGES: ${{ steps.filter.outputs.changes }}
+          LANGS: ${{ steps.langs.outputs.changes }}
+          IMAGES: ${{ steps.images.outputs.changes }}
         run: |
           if [[ "$EVENT" == "workflow_dispatch" ]]; then
-            echo 'langs=["go","python","rust","web"]' >> "$GITHUB_OUTPUT"
-          else
-            echo "langs=$CHANGES" >> "$GITHUB_OUTPUT"
+            LANGS='["go","python","rust","web"]'
+            IMAGES='["hello-api","hello-worker","web"]'
           fi
+          echo "langs=$LANGS" >> "$GITHUB_OUTPUT"
+          echo "images=$IMAGES" >> "$GITHUB_OUTPUT"
 
   check:
     name: check (${{ matrix.lang }})
@@ -154,11 +193,85 @@ jobs:
       - name: just ci-${{ matrix.lang }}
         run: just ci-${{ matrix.lang }}
 
+  images:
+    name: image (${{ matrix.image }})
+    needs: [changes, check]
+    # always() agar job ini tetap dievaluasi saat check di-skip (hanya image yang berubah);
+    # syarat berikutnya memastikan image TIDAK dibangun bila ada check yang gagal.
+    if: >-
+      always()
+      && needs.changes.result == 'success'
+      && (needs.check.result == 'success' || needs.check.result == 'skipped')
+      && needs.changes.outputs.images != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write # satu-satunya job yang boleh menulis ke GHCR
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.changes.outputs.images) }}
+    env:
+      # Push hanya dari main; di PR image cukup dibangun sebagai bukti Dockerfile valid.
+      PUSH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: tentukan Dockerfile, nama image, dan versi
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          case "$IMAGE" in
+            hello-api)    dockerfile=services/hello/api/Dockerfile ;;
+            hello-worker) dockerfile=services/hello/worker/Dockerfile ;;
+            web)          dockerfile=apps/web/Dockerfile ;;
+            *) echo "image tidak dikenal: $IMAGE" >&2; exit 1 ;;
+          esac
+          {
+            echo "DOCKERFILE=$dockerfile"
+            # GHCR mewajibkan huruf kecil; ${VAR,,} = versi huruf kecil dari VAR.
+            echo "IMAGE_REF=ghcr.io/${GITHUB_REPOSITORY,,}/$IMAGE"
+            echo "VERSION=sha-${GITHUB_SHA::7}"
+          } >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v4 # builder BuildKit; wajib untuk cache type=gha
+
+      - if: env.PUSH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tag + label OCI (termasuk org.opencontainers.image.source yang menautkan package ke repo).
+      - uses: docker/metadata-action@v6
+        id: meta
+        with:
+          images: ${{ env.IMAGE_REF }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=main,enable={{is_default_branch}}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: . # konteks = root repo hasil checkout (LAB-ADR-012, .dockerignore berlaku)
+          file: ${{ env.DOCKERFILE }}
+          platforms: linux/amd64
+          push: ${{ env.PUSH == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ env.VERSION }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
   # Satu-satunya check yang dijadikan "required" di branch protection.
   ci-ok:
     name: ci-ok
     if: always() # tetap jalan walau job sebelumnya gagal atau dilewati
-    needs: [changes, check]
+    needs: [changes, check, images]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
