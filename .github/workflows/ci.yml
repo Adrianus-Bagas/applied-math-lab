@@ -261,11 +261,24 @@ jobs:
           file: ${{ env.DOCKERFILE }}
           platforms: linux/amd64
           push: ${{ env.PUSH == 'true' }}
+          # Di PR image tidak di-push, jadi dimuat ke Docker lokal runner untuk smoke test.
+          load: ${{ env.PUSH != 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: VERSION=${{ env.VERSION }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+      # Membuktikan build-arg VERSION benar-benar sampai ke binary (bukan "dev").
+      - name: smoke test versi
+        if: matrix.image == 'hello-api'
+        run: |
+          got=$(docker run --rm "$IMAGE_REF:$VERSION" version)
+          echo "hello-api version: $got"
+          if [[ "$got" != *"\"version\":\"$VERSION\""* ]]; then
+            echo "versi di binary tidak sama dengan $VERSION" >&2
+            exit 1
+          fi
 
   # Satu-satunya check yang dijadikan "required" di branch protection.
   ci-ok:

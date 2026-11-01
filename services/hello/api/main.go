@@ -17,13 +17,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Adrianus-Bagas/applied-math-lab/contracts"
+	"github.com/Adrianus-Bagas/applied-math-lab/packages/go/buildinfo"
 	"github.com/Adrianus-Bagas/applied-math-lab/packages/go/jobqueue"
 )
 
 func main() {
-	// Mode healthcheck untuk HEALTHCHECK Docker (image distroless tanpa curl).
-	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
-		os.Exit(healthcheckMain(os.Getenv))
+	// Subperintah untuk image distroless (tanpa shell maupun curl).
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "healthcheck": // dipakai HEALTHCHECK Docker
+			os.Exit(healthcheckMain(os.Getenv))
+		case "version": // dipakai smoke test CI dan pemeriksaan manual
+			os.Exit(versionMain(os.Stdout, os.Stderr))
+		}
 	}
 	// ctx dibatalkan saat proses menerima Ctrl-C (SIGINT) atau SIGTERM dari Docker.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -80,7 +86,7 @@ func run(ctx context.Context, getenv func(string) string) error {
 	// lewat channel ber-buffer 1 supaya goroutine tidak macet bila tak dibaca.
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info("hello-api mendengarkan", "addr", addr)
+		logger.Info("hello-api mendengarkan", "addr", addr, "version", buildinfo.Get().Version)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
