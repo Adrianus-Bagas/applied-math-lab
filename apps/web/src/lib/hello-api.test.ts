@@ -43,42 +43,6 @@ describe("createHelloJob", () => {
   });
 });
 
-describe("createHelloJob", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("melempar HelloApiError berisi pesan server untuk 422", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({ error: "jobqueue: invalid payload: n wajib" }),
-            { status: 422 },
-          ),
-      ),
-    );
-    const err: unknown = await createHelloJob([]).catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(HelloApiError);
-    expect(err).toMatchObject({
-      status: 422,
-      message: "jobqueue: invalid payload: n wajib",
-    });
-  });
-
-  it("memberi pesan cadangan saat body bukan JSON (502 dari proxy)", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("Bad Gateway", { status: 502 })),
-    );
-    await expect(createHelloJob({})).rejects.toMatchObject({
-      status: 502,
-      message: "HTTP 502",
-    });
-  });
-});
-
 describe("progressStage", () => {
   it.each([
     { input: { tahap: "hitung" }, want: "hitung" },

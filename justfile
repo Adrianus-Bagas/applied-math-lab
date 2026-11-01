@@ -10,8 +10,14 @@ default:
 # ---------- setup ----------
 
 # Pasang dependensi Python dan Node persis sesuai lockfile
-setup:
+setup: setup-py setup-node
+
+# Dependensi Python (juga wajib sebelum clippy: PYO3_PYTHON menunjuk ke .venv)
+setup-py:
     uv sync --all-packages --locked
+
+# Dependensi Node
+setup-node:
     pnpm install --frozen-lockfile
 
 # ---------- format (mengubah file) ----------
@@ -35,7 +41,7 @@ fmt-misc:
 # ---------- lint (read-only, dipakai CI) ----------
 
 # Periksa format dan lint semua bahasa tanpa mengubah file
-lint: lint-rust lint-go lint-py lint-misc
+lint: lint-rust lint-go lint-py lint-web lint-misc
 
 lint-rust:
     cargo fmt --all --check
@@ -48,18 +54,24 @@ lint-go:
 lint-py:
     uv run ruff format --check
     uv run ruff check
-    uv run mypy packages/python/*/src packages/rust/*/python
+    uv run mypy packages/python/*/src packages/rust/*/python services/*/worker/src
 
+lint-web:
+    pnpm --filter web lint
+    pnpm --filter web typecheck
+
+# Prettier untuk Markdown, JSON, YAML, dan TS di seluruh repo
 lint-misc:
     pnpm format:check
 
 # ---------- test ----------
+
 # Bangun ulang extension module PyO3 ke .venv (debug, inkremental)
 py-ext:
     uv run maturin develop --uv -m packages/rust/lab-numerics-py/Cargo.toml
 
 # Jalankan semua test
-test: test-rust test-go test-py
+test: test-rust test-go test-py test-web
 
 test-rust:
     cargo test --workspace
@@ -70,10 +82,27 @@ test-go:
 test-py: py-ext
     uv run pytest
 
+test-web:
+    pnpm --filter web test
+
+# ---------- CI per bahasa ----------
+# Gabungan keempat resep ci-* HARUS sama dengan `check`.
+# Setiap job GitHub Actions memanggil tepat satu resep ini.
+
+ci-rust: lint-rust test-rust
+
+ci-go: lint-go test-go
+
+ci-python: lint-py test-py
+
+ci-web: lint-web lint-misc test-web
+
 # ---------- gabungan ----------
 
 # Semua pemeriksaan yang juga dijalankan CI
 check: lint test
+
+# ---------- Postgres dev ----------
 
 compose_dev := "docker compose -f infrastructure/compose.dev.yaml"
 
@@ -98,6 +127,8 @@ db-psql:
 jobq *args:
     go run ./packages/go/jobqueue/cmd/jobqueuectl "$@"
 
+# ---------- walking skeleton dev ----------
+
 # Jalankan worker hello (Ctrl+C untuk berhenti rapi)
 worker-hello:
     uv run python -m hello_worker
@@ -110,14 +141,8 @@ api-hello:
 dev-web:
     pnpm --filter web dev
 
-lint-web:
-    pnpm --filter web lint
-    pnpm --filter web typecheck
-
-test-web:
-    pnpm --filter web test
-
 # ---------- Stack Docker lokal (L0.6) ----------
+
 compose := "docker compose -f infrastructure/compose.yaml"
 
 # Bangun semua image lalu jalankan seluruh stack di :8000
