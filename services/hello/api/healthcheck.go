@@ -48,3 +48,5 @@ func healthcheckMain(getenv func(string) string) int {
 	}
 	return 0
 }
+
+var   ujiCI = 1
