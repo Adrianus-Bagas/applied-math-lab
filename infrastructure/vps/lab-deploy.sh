@@ -13,6 +13,10 @@ set -euo pipefail
 readonly REPO="Adrianus-Bagas/applied-math-lab"
 readonly APP_DIR="/opt/applied-math-lab"
 readonly LOG_FILE="${APP_DIR}/deploy.log"
+# Folder sementara deploy. Global (bukan local) karena trap EXIT berjalan setelah
+# do_deploy selesai, saat variabel local fungsi itu sudah tidak ada.
+tmp=""
+trap 'rm -rf -- ${tmp:+"$tmp"}' EXIT
 
 die() {
 	echo "lab-deploy: $*" >&2
@@ -34,7 +38,7 @@ do_deploy() {
 	local sha="$1"
 	local tag="sha-${sha:0:7}"
 	local base="https://raw.githubusercontent.com/${REPO}/${sha}/infrastructure"
-	local tmp status running caddy_changed=0
+	local status running caddy_changed=0
 
 	cd "$APP_DIR"
 
@@ -43,7 +47,6 @@ do_deploy() {
 	flock -n 9 || die "deploy lain sedang berjalan"
 
 	tmp="$(mktemp -d)"
-	trap 'rm -rf "$tmp"' EXIT
 
 	log "mulai ${tag} (${sha})"
 
