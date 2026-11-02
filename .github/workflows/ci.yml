@@ -36,6 +36,8 @@ jobs:
     outputs:
       langs: ${{ steps.lists.outputs.langs }}
       images: ${{ steps.lists.outputs.images }}
+      unchanged: ${{ steps.lists.outputs.unchanged }}
+      deploy: ${{ steps.lists.outputs.deploy }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -118,19 +120,42 @@ jobs:
               - .node-version
               - "apps/web/**"
 
+      # Filter VPS: file yang diunduh lab-deploy dari commit yang di-deploy.
+      # lab-deploy.sh sendiri TIDAK di sini: skrip itu dipasang manual oleh admin (milik root),
+      # sehingga CI tidak bisa mengubah aturan yang membatasi dirinya sendiri.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: vps
+        with:
+          filters: |
+            vps:
+              - .github/workflows/ci.yml
+              - infrastructure/compose.vps.yaml
+              - infrastructure/Caddyfile
+
       - name: susun daftar bahasa dan image
         id: lists
         env:
           EVENT: ${{ github.event_name }}
           LANGS: ${{ steps.langs.outputs.changes }}
           IMAGES: ${{ steps.images.outputs.changes }}
+          VPS: ${{ steps.vps.outputs.vps }}
         run: |
+          # Semua image lab; tambahkan di sini setiap ada image baru.
+          ALL='["hello-api","hello-worker","web"]'
           if [[ "$EVENT" == "workflow_dispatch" ]]; then
             LANGS='["go","python","rust","web"]'
-            IMAGES='["hello-api","hello-worker","web"]'
+            IMAGES="$ALL"
           fi
-          echo "langs=$LANGS" >> "$GITHUB_OUTPUT"
-          echo "images=$IMAGES" >> "$GITHUB_OUTPUT"
+          # Selisih himpunan: image yang tidak berubah → cukup di-tag ulang di main.
+          UNCHANGED=$(jq -cn --argjson all "$ALL" --argjson ch "$IMAGES" '$all - $ch')
+          # Deploy hanya bila ada yang benar-benar berubah di VPS (image atau konfigurasinya).
+          if [[ "$IMAGES" != "[]" || "$VPS" == "true" ]]; then DEPLOY=true; else DEPLOY=false; fi
+          {
+            echo "langs=$LANGS"
+            echo "images=$IMAGES"
+            echo "unchanged=$UNCHANGED"
+            echo "deploy=$DEPLOY"
+          } >> "$GITHUB_OUTPUT"
 
   check:
     name: check (${{ matrix.lang }})
@@ -279,6 +304,93 @@ jobs:
             echo "versi di binary tidak sama dengan $VERSION" >&2
             exit 1
           fi
+  # Di main, image yang TIDAK berubah diberi tag sha-<7> yang menunjuk ke image `main` yang sama,
+  # sehingga setiap commit main punya tiga tag lengkap untuk IMAGE_TAG di VPS (L0.8).
+  retag:
+    name: tag ulang image yang tidak berubah
+    needs: [changes, check, images]
+    if: >-
+      always()
+      && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      && needs.changes.result == 'success'
+      && needs.changes.outputs.unchanged != '[]'
+      && !contains(needs.*.result, 'failure')
+      && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: main → sha-<7> (tanpa build, hanya manifest di registry)
+        env:
+          UNCHANGED: ${{ needs.changes.outputs.unchanged }}
+        run: |
+          repo="ghcr.io/${GITHUB_REPOSITORY,,}"
+          tag="sha-${GITHUB_SHA::7}"
+          for image in $(jq -r '.[]' <<<"$UNCHANGED"); do
+            echo "::group::$image"
+            docker buildx imagetools create --tag "$repo/$image:$tag" "$repo/$image:main"
+            echo "::endgroup::"
+          done
+
+  # Deploy ke VPS lewat user `deploy` yang dikunci forced command lab-deploy (L0.8).
+  # Sengaja tidak masuk ci-ok: ci-ok menggerbangi PR, sedangkan deploy hanya terjadi setelah merge.
+  deploy:
+    name: deploy (VPS)
+    needs: [changes, check, images, retag]
+    if: >-
+      always()
+      && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      && needs.changes.outputs.deploy == 'true'
+      && !contains(needs.*.result, 'failure')
+      && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Secret hanya bisa dibaca job yang memakai environment ini, dan environment dibatasi ke main.
+    environment:
+      name: production
+      url: https://applied-math-lab.portfolio-bagas.tech
+    # Deploy berurutan, tidak pernah dibatalkan di tengah jalan.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions: {} # tidak butuh token GitHub sama sekali
+    steps:
+      - name: siapkan kunci SSH dan host key
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      # Klien hanya mengirim SHA; lab-deploy memvalidasi dan mengerjakan sisanya di VPS.
+      - name: deploy ${{ github.sha }}
+        env:
+          VPS_HOST: ${{ vars.VPS_HOST }}
+        run: >-
+          ssh -i ~/.ssh/deploy_key
+          -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes
+          "deploy@${VPS_HOST}" "deploy ${GITHUB_SHA}"
+
+      # Verifikasi dari sisi pengunjung: DNS, TLS, Caddy, dan Next.js.
+      - name: smoke test publik
+        env:
+          URL: https://applied-math-lab.portfolio-bagas.tech
+        run: |
+          for path in / /hello; do
+            curl -fsS --retry 5 --retry-delay 3 --retry-all-errors -o /dev/null "$URL$path"
+            echo "OK $URL$path"
+          done
 
   # Satu-satunya check yang dijadikan "required" di branch protection.
   ci-ok:
