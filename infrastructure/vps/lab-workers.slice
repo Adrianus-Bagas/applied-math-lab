@@ -1,0 +1,9 @@
+# Applied Math Lab (L0.8): slot komputasi berat untuk seluruh lab.
+# Semua container worker (cgroup_parent) berbagi anggaran CPU gabungan 1 vCPU,
+# sehingga satu core selalu tersisa untuk API, web, dan Postgres (§4.4 nomor 3).
+# Dipasang manual: /etc/systemd/system/lab-workers.slice
+[Unit]
+Description=Applied Math Lab - slot komputasi berat (gabungan semua worker)
+
+[Slice]
+CPUQuota=100%

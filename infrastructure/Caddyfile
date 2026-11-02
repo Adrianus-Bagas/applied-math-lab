@@ -1,0 +1,40 @@
+# Caddy VPS: routing sama dengan Caddyfile.local, ditambah TLS otomatis dan header keamanan.
+# Domain dan email dibaca dari environment container (lihat compose.vps.yaml).
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+{$LAB_DOMAIN} {
+	# Header keamanan dasar untuk semua respons.
+	header {
+		# HSTS: browser wajib HTTPS untuk domain ini. Mulai 1 hari selama setup;
+		# naikkan ke 1 tahun (31536000) setelah stabil. Sengaja tanpa includeSubDomains.
+		Strict-Transport-Security "max-age=86400"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Readiness API + DB untuk monitor eksternal (LAB-ADR-014).
+	# Path yang lebih spesifik dievaluasi lebih dulu, jadi blok ini tidak tertimpa /api/hello/*.
+	handle /api/hello/readyz {
+		rewrite * /readyz
+		reverse_proxy hello-api:8080
+	}
+
+	# API: tanpa encode (kompresi menahan stream SSE), flush setiap tulisan.
+	handle /api/hello/* {
+		reverse_proxy hello-api:8080 {
+			flush_interval -1
+		}
+	}
+
+	# Sisanya ke portal Next.js; kompresi dilakukan di sini, bukan di Next.
+	handle {
+		encode zstd gzip
+		reverse_proxy web:3000
+	}
+
+	log
+}

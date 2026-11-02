@@ -1,0 +1,110 @@
+# Stack produksi VPS: image dari GHCR (dibangun dan diuji CI), tidak ada build di VPS.
+# Dijalankan di /opt/applied-math-lab dengan .env di sebelahnya (contoh: .env.vps.example).
+# Turunan dari compose.yaml lokal: batas sumber daya dan urutan start harus tetap sama.
+name: lab
+
+# URL DB dirakit dari password di .env. Password wajib hex (openssl rand -hex 32)
+# karena karakter seperti @ : / akan merusak format URL.
+x-db-url: &db-url postgres://lab:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi di .env}@postgres:5432/lab_hello?sslmode=disable
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi di .env}
+      POSTGRES_DB: lab_hello
+    # Penyetelan RAM kecil (§4.4); titik awal, dikalibrasi dari pemakaian nyata.
+    command:
+      - postgres
+      - -c
+      - max_connections=30 # SSE memakai satu koneksi LISTEN per proses, bukan per klien
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - work_mem=4MB
+    shm_size: 256m # bawaan Docker 64 MB terlalu kecil untuk shared memory dinamis Postgres
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab -d lab_hello"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    cpus: 0.5
+    mem_limit: 1536m
+    restart: unless-stopped
+    # Sengaja TANPA ports: Postgres hanya bisa dijangkau dari jaringan internal Compose.
+
+  # Sekali jalan: menerapkan migrasi jobqueue lalu keluar dengan kode 0.
+  migrate:
+    image: ${REGISTRY:-ghcr.io/adrianus-bagas/applied-math-lab}/hello-api:${IMAGE_TAG:?IMAGE_TAG wajib diisi di .env}
+    entrypoint: ["/usr/local/bin/jobqueuectl", "migrate"]
+    environment:
+      DATABASE_URL: *db-url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  hello-api:
+    image: ${REGISTRY:-ghcr.io/adrianus-bagas/applied-math-lab}/hello-api:${IMAGE_TAG:?IMAGE_TAG wajib diisi di .env}
+    environment:
+      DATABASE_URL: *db-url
+      HELLO_API_ADDR: ":8080"
+      GOMEMLIMIT: 100MiB # di bawah batas container 128 MB (§4.2)
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    cpus: 0.25
+    mem_limit: 128m
+    restart: unless-stopped
+
+  hello-worker:
+    image: ${REGISTRY:-ghcr.io/adrianus-bagas/applied-math-lab}/hello-worker:${IMAGE_TAG:?IMAGE_TAG wajib diisi di .env}
+    environment:
+      DATABASE_URL: *db-url
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    init: true # tini sebagai PID 1: meneruskan sinyal, membersihkan proses zombie
+    cgroup_parent: lab-workers.slice # anggaran CPU gabungan semua worker = 1 vCPU (LAB-ADR-014, Terbuka #10)
+    stop_grace_period: 30s
+    cpus: 1.0
+    mem_limit: 768m
+    restart: unless-stopped # wajib untuk worker crash-only (LAB-ADR-010)
+
+  web:
+    image: ${REGISTRY:-ghcr.io/adrianus-bagas/applied-math-lab}/web:${IMAGE_TAG:?IMAGE_TAG wajib diisi di .env}
+    cpus: 0.5
+    mem_limit: 512m
+    restart: unless-stopped
+
+  # Satu-satunya service yang membuka port ke luar. Docker melewati aturan UFW
+  # untuk port yang dipublikasikan, jadi service lain TIDAK boleh punya ports.
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80" # tantangan ACME HTTP-01 + redirect ke HTTPS
+      - "443:443" # HTTPS (HTTP/1.1 dan HTTP/2)
+      - "443:443/udp" # HTTP/3 (QUIC)
+    environment:
+      LAB_DOMAIN: ${LAB_DOMAIN:?LAB_DOMAIN wajib diisi di .env}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL wajib diisi di .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # sertifikat + kunci akun ACME; hilang = kena rate limit Let's Encrypt
+      - caddy_config:/config
+    depends_on:
+      hello-api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    cpus: 0.25
+    mem_limit: 128m
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

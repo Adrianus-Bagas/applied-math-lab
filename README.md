@@ -1,7 +1,7 @@
 # Applied Math Lab
 
 Tiga software portofolio berbasis matematika terapan untuk masalah di Indonesia:
-**MBG Operations Optimizer**, **DengueSim**, dan **Harga Pangan**.
+**MealOps — optimasi dapur massal dan distribusi makanan perishable**, **DengueSim**, dan **Harga Pangan**.
 
 Arsitektur: Next.js → Go API → antrean job PostgreSQL → Python worker → Rust core (PyO3).
 
