@@ -1,5 +1,6 @@
 //! Utilitas numerik bersama untuk Applied Math Lab.
 
+pub mod cfrac;
 pub mod poly;
 pub mod quad;
 pub mod rational;
