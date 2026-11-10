@@ -45,7 +45,7 @@ L0.7 menghasilkan image `hello-api`, `hello-worker`, dan `web` di GHCR. L0.8 per
   3. unduh `compose.vps.yaml` dan `Caddyfile` **dari commit yang sama** (konfigurasi infrastruktur ter-versi bersama kode);
   4. `config` dan `pull` di folder sementara selagi versi lama masih melayani;
   5. ganti file, `up -d --remove-orphans --wait`; Caddy dibuat ulang bila `Caddyfile` berubah (bind mount satu file memegang inode lama);
-  6. verifikasi `hello-api version` yang benar-benar berjalan berisi `sha-<7>`;
+  6. verifikasi: ID image container yang berjalan harus sama dengan ID image tag `sha-<7>` untuk ketiga layanan; hello-api version hanya dicatat di log, karena image hasil retag membawa SHA build lama (diperbaiki di L0.9a).;
   7. `docker image prune -af --filter until=168h`; catat ke `deploy.log`. Satu deploy pada satu waktu (`flock`).
 - **Rollback** = deploy SHA sukses sebelumnya dari `deploy.log`, baik dari CI maupun dari admin: `sudo -u deploy lab-deploy deploy <sha>`. Migrasi bersifat maju; rollback melewati migrasi yang tidak kompatibel tidak didukung.
 
