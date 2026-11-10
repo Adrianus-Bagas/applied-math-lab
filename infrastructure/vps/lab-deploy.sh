@@ -86,9 +86,22 @@ do_deploy() {
 		docker compose up -d --no-deps --force-recreate caddy
 	fi
 
-	# 6. Pastikan binary yang benar-benar berjalan membawa versi yang diharapkan.
-	running="$(docker compose exec -T hello-api /usr/local/bin/hello-api version)"
-	[[ "$running" == *"$tag"* ]] || die "versi berjalan '${running}' bukan ${tag}"
+	# 6. Pastikan setiap container menjalankan image dari tag yang baru ditarik.
+	#    Versi yang tertanam di binary tidak dibandingkan dengan tag: image yang
+	#    tidak berubah hanya di-retag di CI, jadi binary-nya membawa SHA commit
+	#    yang terakhir membangunnya, bukan SHA commit yang di-deploy.
+	local svc cid ref running_id expected_id
+	for svc in hello-api hello-worker web; do
+		cid="$(docker compose ps -q "$svc")"
+		[[ -n "$cid" ]] || die "container ${svc} tidak ditemukan"
+		ref="$(docker inspect --format '{{.Config.Image}}' "$cid")"
+		[[ "$ref" == *":${tag}" ]] || die "${svc} memakai image ${ref}, bukan tag ${tag}"
+		running_id="$(docker inspect --format '{{.Image}}' "$cid")"
+		expected_id="$(docker image inspect --format '{{.Id}}' "$ref")"
+		[[ "$running_id" == "$expected_id" ]] || die "${svc} menjalankan image usang untuk ${ref}"
+	done
+	# Versi tertanam dicatat sebagai informasi; sekaligus membuktikan binary bisa dijalankan.
+	log "build hello-api: $(docker compose exec -T hello-api /usr/local/bin/hello-api version)"
 
 	# 7. Buang image yang tidak dipakai container dan berumur > 7 hari (§4.4).
 	#    Rollback ke versi lama tetap bisa: image ditarik ulang dari GHCR.
