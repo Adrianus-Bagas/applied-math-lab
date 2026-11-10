@@ -1,5 +1,9 @@
 //! Utilitas numerik bersama untuk Applied Math Lab.
 
+pub mod poly;
+pub mod quad;
+pub mod rational;
+pub mod roots;
 pub mod stats;
 
 /// Membandingkan dua `f64` dengan toleransi relatif dan absolut.
