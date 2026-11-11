@@ -21,3 +21,4 @@ Satu file per keputusan arsitektur. ADR menjawab "mengapa begini", supaya keputu
 | [012](LAB-ADR-012-docker-dan-compose-lokal.md) | Image Docker multi-stage dan Compose lokal                         | L0.6          |
 | [013](LAB-ADR-013-ci-github-actions.md)        | CI GitHub Actions dan GHCR                                         | L0.7          |
 | [014](LAB-ADR-014-vps-dan-deploy.md)           | VPS, deploy otomatis, dan slot job berat                           | L0.8          |
+| [015](LAB-ADR-015-rust-wasm-di-portal.md)      | Rust → WASM di portal                                              | L0.11         |
