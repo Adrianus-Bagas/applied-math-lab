@@ -28,3 +28,7 @@
 !.env.example
 datasets
 experiments
+
+# Hasil `just wasm` di laptop: image membangun WASM sendiri
+apps/web/src/wasm
+apps/web/public/wasm

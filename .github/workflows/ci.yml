@@ -77,6 +77,7 @@ jobs:
               - "contracts/jobs/**"
             web:
               - *shared
+              - *rustpaths
               - package.json
               - pnpm-lock.yaml
               - pnpm-workspace.yaml
@@ -119,6 +120,10 @@ jobs:
               - pnpm-workspace.yaml
               - .node-version
               - "apps/web/**"
+              - Cargo.toml
+              - Cargo.lock
+              - rust-toolchain.toml
+              - "packages/rust/**"
 
       # Filter VPS: file yang diunduh lab-deploy dari commit yang di-deploy.
       # lab-deploy.sh sendiri TIDAK di sini: skrip itu dipasang manual oleh admin (milik root),
@@ -190,10 +195,14 @@ jobs:
       - if: matrix.lang == 'rust' || matrix.lang == 'python'
         name: pasang toolchain Rust dari rust-toolchain.toml
         run: rustup toolchain install
-      - if: matrix.lang == 'rust' || matrix.lang == 'python'
+      - if: matrix.lang == 'rust' || matrix.lang == 'python' || matrix.lang == 'web'
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           key: ${{ matrix.lang }}
+      # ---- WASM (untuk web: glue dan .wasm dibangun sebelum lint/test) ----
+      - if: matrix.lang == 'web'
+        name: pasang wasm-bindgen-cli
+        run: just wasm-tools
 
       # ---- Python (juga untuk Rust: PYO3_PYTHON menunjuk ke .venv) ----
       - if: matrix.lang == 'rust' || matrix.lang == 'python'
@@ -387,7 +396,7 @@ jobs:
         env:
           URL: https://applied-math-lab.portfolio-bagas.tech
         run: |
-          for path in / /hello; do
+          for path in / /hello /wasm-demo /wasm/lab_numerics_bg.wasm; do
             curl -fsS --retry 5 --retry-delay 3 --retry-all-errors -o /dev/null "$URL$path"
             echo "OK $URL$path"
           done

@@ -2,3 +2,5 @@ pnpm-lock.yaml
 datasets/
 apps/web/.next
 apps/web/next-env.d.ts
+apps/web/src/wasm/
+apps/web/public/wasm/

@@ -42,3 +42,6 @@ datasets/**/raw/
 
 # Extension module hasil maturin develop
 *.so
+
+apps/web/src/wasm/
+apps/web/public/wasm/

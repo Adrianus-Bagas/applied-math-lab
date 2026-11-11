@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT — Applied Math Lab
 
-> **Versi dokumen:** 1.10
-> **Terakhir diperbarui:** 2026-11-10
+> **Versi dokumen:** 1.11
+> **Terakhir diperbarui:** 2026-11-11
 > **Status:** Dokumen induk lab. Semua proyek dimulai dari nol dengan arsitektur seragam.
 > **Dokumen turunan:** `PROJECT_CONTEXT` MealOps v3.1 (dokumen lama berjudul _MBG v3.1_) tetap menjadi rujukan **model matematis dan algoritma MealOps**; istilah khusus program MBG/SPPG di dalamnya dibaca sebagai istilah umum menurut glosarium §5.1. Bagian yang digantikan oleh dokumen ini dicantumkan di §5.1.
 
@@ -490,8 +490,8 @@ Konvensi: format `nomor Nama (jam, mode)`. ⭐ menandai titik utama belajar teor
 | ✅ L0.8 VPS: hardening, Caddy, deploy pertama end-to-end "hello lab" (6, T)                                                       |
 | ✅ L0.9a ⭐ Latihan Rust lewat soal matematika: ownership, borrowing, struct, enum, error, trait, generics, trait operator (9, L) |
 | ✅ L0.9b Latihan Rust: iterator lewat pecahan berlanjut √2 (1, L)                                                                 |
-| ✅L0.10 ⭐ Latihan Python numerik: vektorisasi NumPy, SciPy, aritmetika floating-point dan toleransi tes (6, L)                   |
-| L0.11 Template ADR, `PROGRESS.md`, demo Rust → WASM di portal (4, T)                                                              |
+| ✅ L0.10 ⭐ Latihan Python numerik: vektorisasi NumPy, SciPy, aritmetika floating-point dan toleransi tes (6, L)                  |
+| ⏳ L0.11 Template ADR, `PROGRESS.md`, demo Rust → WASM di portal (4, T)                                                           |
 
 ### 7.2 MealOps — MVP (~317 jam)
 

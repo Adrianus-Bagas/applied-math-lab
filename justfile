@@ -56,7 +56,7 @@ lint-py:
     uv run ruff check
     uv run mypy packages/python/*/src packages/rust/*/python services/*/worker/src
 
-lint-web:
+lint-web: wasm
     pnpm --filter web lint
     pnpm --filter web typecheck
 
@@ -82,8 +82,27 @@ test-go:
 test-py: py-ext
     uv run pytest
 
-test-web:
+test-web: wasm
     pnpm --filter web test
+
+# ---------- WASM (L0.11) ----------
+
+# Harus sama persis dengan wasm-bindgen di Cargo.toml.
+wasm_bindgen_version := "0.2.130"
+wasm_glue := "apps/web/src/wasm/lab-numerics"
+wasm_bin := "apps/web/public/wasm"
+
+# Pasang wasm-bindgen-cli dengan versi yang dipin
+wasm-tools:
+    cargo install wasm-bindgen-cli --version {{ wasm_bindgen_version }} --locked
+
+# Bangun lab-numerics-wasm: glue JS/TS ke src/wasm, biner .wasm ke public/wasm
+wasm:
+    cargo build -p lab-numerics-wasm --target wasm32-unknown-unknown --profile wasm-release
+    rm -rf {{ wasm_glue }}
+    wasm-bindgen target/wasm32-unknown-unknown/wasm-release/lab_numerics_wasm.wasm --target web --omit-default-module-path --out-dir {{ wasm_glue }} --out-name lab_numerics
+    mkdir -p {{ wasm_bin }}
+    mv {{ wasm_glue }}/lab_numerics_bg.wasm {{ wasm_bin }}/
 
 # ---------- CI per bahasa ----------
 # Gabungan keempat resep ci-* HARUS sama dengan `check`.
@@ -138,7 +157,7 @@ api-hello:
     go run ./services/hello/api
 
 # Jalankan lab portal di :3000 (rewrite /api/hello → hello-api :8080)
-dev-web:
+dev-web: wasm
     pnpm --filter web dev
 
 # ---------- Stack Docker lokal (L0.6) ----------
