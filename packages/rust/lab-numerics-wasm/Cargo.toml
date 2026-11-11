@@ -1,0 +1,21 @@
+[package]
+name = "lab-numerics-wasm"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+# cdylib = pustaka dinamis; untuk target wasm32 hasilnya satu file .wasm.
+crate-type = ["cdylib"]
+# Seperti lab-numerics-py: matematika diuji di lab-numerics,
+# perbatasan JS diuji dari sisi web (vitest).
+test = false
+doctest = false
+
+[dependencies]
+lab-numerics = { path = "../lab-numerics" }
+wasm-bindgen = { workspace = true }
+
+[lints]
+workspace = true
