@@ -5,6 +5,14 @@
 > **Status:** Dokumen induk lab. Semua proyek dimulai dari nol dengan arsitektur seragam.
 > **Dokumen turunan:** `PROJECT_CONTEXT` MealOps v3.1 (dokumen lama berjudul _MBG v3.1_) tetap menjadi rujukan **model matematis dan algoritma MealOps**; istilah khusus program MBG/SPPG di dalamnya dibaca sebagai istilah umum menurut glosarium §5.1. Bagian yang digantikan oleh dokumen ini dicantumkan di §5.1.
 
+### Perubahan v1.11 (11 Nov 2026, L0.10)
+
+- **L0.10 selesai:** `lab_stats` bertambah modul `floats`, `summation`, `distance`, `tolerance`, `quadrature`.
+- **Aturan toleransi tes:** selalu eksplisit dan diturunkan dari bound galat (pembulatan: c·κ·u; pemotongan: orde metode; ditambah galat oracle), tidak pernah dari hasil yang diuji atau bawaan pustaka.
+- Matriks jarak memakai broadcasting; rumus Gram hanya setelah koordinat dipusatkan.
+- SciPy + `scipy-stubs` menjadi dependensi dev (oracle di tes).
+- §2.5, §7.1, §8.3 diperbarui.
+
 ### Perubahan v1.10 (10 Nov 2026, L0.9b)
 
 - **L0.9b selesai:** modul `lab-numerics::cfrac` (iterator generik `Convergents<I>`, `FusedIterator`, aritmetika `checked_*`, `sqrt2_convergents`, `sqrt2_approx`).
@@ -162,18 +170,18 @@ Pola ini diterapkan secara selektif supaya tidak menggandakan pekerjaan:
 
 ### 2.5 Stack pendukung
 
-| Kebutuhan           | Go                                                                        | Python                                    | Rust                            | Next.js                                           |
-| ------------------- | ------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------- | ------------------------------------------------- |
-| Tooling & lint      | golangci-lint v2 (gofmt, goimports, revive, dll.), go vet                 | ruff, mypy strict                         | rustfmt, clippy `-D warnings`   | eslint, `next typegen` + `tsc --noEmit`, prettier |
-| Pengujian           | `testing` (`-race`, `-timeout 3m`), testcontainers-go                     | pytest, Hypothesis, testcontainers-python | `cargo test`, proptest          | vitest                                            |
-| Akses DB            | pgx (pgxpool) + sqlc, migrasi goose (Provider API, embedded)              | psycopg 3                                 | —                               | —                                                 |
-| Kontrak             | OpenAPI (oapi-codegen); JSON Schema job via santhosh-tekuri/jsonschema v6 | JSON Schema (`jsonschema`) / Pydantic     | serde                           | openapi-typescript (hello: tipe ditulis tangan)   |
-| HTTP                | `net/http` + `ServeMux` (LAB-ADR-011)                                     | —                                         | —                               | EventSource (SSE)                                 |
-| Profiling           | pprof                                                                     | cProfile                                  | criterion, flamegraph           | —                                                 |
-| Workspace           | satu `go.mod` di root (LAB-ADR-008)                                       | uv workspace                              | Cargo workspace                 | pnpm workspace                                    |
-| Jembatan            | —                                                                         | maturin (build backend)                   | PyO3 + rust-numpy (LAB-ADR-009) | —                                                 |
-| Image (LAB-ADR-012) | distroless static nonroot                                                 | python slim + `.venv`                     | wheel maturin di tahap build    | Next.js standalone                                |
-| CI (LAB-ADR-013)    | `just ci-go`                                                              | `just ci-python`                          | `just ci-rust`                  | `just ci-web` (+ prettier)                        |
+| Kebutuhan           | Go                                                                        | Python                                                         | Rust                            | Next.js                                           |
+| ------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------- | ------------------------------------------------- |
+| Tooling & lint      | golangci-lint v2 (gofmt, goimports, revive, dll.), go vet                 | ruff, mypy strict                                              | rustfmt, clippy `-D warnings`   | eslint, `next typegen` + `tsc --noEmit`, prettier |
+| Pengujian           | `testing` (`-race`, `-timeout 3m`), testcontainers-go                     | pytest, Hypothesis, testcontainers-python, SciPy (oracle, dev) | `cargo test`, proptest          | vitest                                            |
+| Akses DB            | pgx (pgxpool) + sqlc, migrasi goose (Provider API, embedded)              | psycopg 3                                                      | —                               | —                                                 |
+| Kontrak             | OpenAPI (oapi-codegen); JSON Schema job via santhosh-tekuri/jsonschema v6 | JSON Schema (`jsonschema`) / Pydantic                          | serde                           | openapi-typescript (hello: tipe ditulis tangan)   |
+| HTTP                | `net/http` + `ServeMux` (LAB-ADR-011)                                     | —                                                              | —                               | EventSource (SSE)                                 |
+| Profiling           | pprof                                                                     | cProfile                                                       | criterion, flamegraph           | —                                                 |
+| Workspace           | satu `go.mod` di root (LAB-ADR-008)                                       | uv workspace                                                   | Cargo workspace                 | pnpm workspace                                    |
+| Jembatan            | —                                                                         | maturin (build backend)                                        | PyO3 + rust-numpy (LAB-ADR-009) | —                                                 |
+| Image (LAB-ADR-012) | distroless static nonroot                                                 | python slim + `.venv`                                          | wheel maturin di tahap build    | Next.js standalone                                |
+| CI (LAB-ADR-013)    | `just ci-go`                                                              | `just ci-python`                                               | `just ci-rust`                  | `just ci-web` (+ prettier)                        |
 
 Prettier di root juga memformat Markdown, JSON, dan YAML. Semua pemeriksaan dijalankan lewat `just` (`just fmt`, `just lint`, `just test`, `just check`); CI menjalankan resep per bahasa `just ci-<bahasa>` yang gabungannya sama dengan `just check`. Postgres dev: `just db-up` (`infrastructure/compose.dev.yaml`, PostgreSQL 18); alat antrean dev: `just jobq <migrate|status|enqueue|show>`. Walking skeleton dev: `just api-hello` (Go :8080), `just worker-hello`, `just dev-web` (Next.js :3000). Stack container lokal: `just stack-up` (semua lapisan di balik Caddy `http://localhost:8000`), `just stack-ps`, `just stack-logs`, `just stack-down`. **Produksi** (LAB-ADR-014): `https://applied-math-lab.portfolio-bagas.tech`, deploy otomatis setiap merge ke `main`; dari VPS: `cd /opt/applied-math-lab && sudo docker compose ps`, `sudo -u deploy lab-deploy status`, rollback `sudo -u deploy lab-deploy deploy <sha>`.
 
@@ -482,7 +490,7 @@ Konvensi: format `nomor Nama (jam, mode)`. ⭐ menandai titik utama belajar teor
 | ✅ L0.8 VPS: hardening, Caddy, deploy pertama end-to-end "hello lab" (6, T)                                                       |
 | ✅ L0.9a ⭐ Latihan Rust lewat soal matematika: ownership, borrowing, struct, enum, error, trait, generics, trait operator (9, L) |
 | ✅ L0.9b Latihan Rust: iterator lewat pecahan berlanjut √2 (1, L)                                                                 |
-| L0.10 ⭐ Latihan Python numerik: vektorisasi NumPy, SciPy, aritmetika floating-point dan toleransi tes (6, L)                     |
+| ✅L0.10 ⭐ Latihan Python numerik: vektorisasi NumPy, SciPy, aritmetika floating-point dan toleransi tes (6, L)                   |
 | L0.11 Template ADR, `PROGRESS.md`, demo Rust → WASM di portal (4, T)                                                              |
 
 ### 7.2 MealOps — MVP (~317 jam)
@@ -592,7 +600,7 @@ Alokasi: **10–15 jam per minggu**, dengan buffer 20%.
 - 2 sesi hari kerja × 1,5–2 jam: teori, formulasi, review (cocok untuk sub-milestone ⭐ dan Mode Latihan).
 - 1 sesi akhir pekan × 5–8 jam: implementasi, setup, debugging (cocok untuk Mode Tuntun).
 - Satu sub-milestone biasanya selesai dalam 1–3 sesi.
-- Setiap 4–6 minggu, bandingkan jam aktual dengan estimasi di `PROGRESS.md` dan kalibrasi ulang timeline. (Catatan per L0.8: L0.1–L0.8 selesai dalam ~20 jam dari estimasi 39 jam. Sub-milestone Mode Tuntun konsisten di bawah estimasi; sub-milestone Mode Latihan berikutnya belum terkalibrasi. Catatan per L0.9a: sub-milestone Mode Latihan pertama memakan ~20 jam dari estimasi 9 (~2×); estimasi Mode Latihan di §7.2–7.4 kemungkinan terlalu rendah dan dikalibrasi ulang setelah L0.10. Catatan per L0.9b: ~1 jam dari estimasi 1.)
+- Setiap 4–6 minggu, bandingkan jam aktual dengan estimasi di `PROGRESS.md` dan kalibrasi ulang timeline. (Catatan per L0.8: L0.1–L0.8 selesai dalam ~20 jam dari estimasi 39 jam. Sub-milestone Mode Tuntun konsisten di bawah estimasi; sub-milestone Mode Latihan berikutnya belum terkalibrasi. Catatan per L0.9a: sub-milestone Mode Latihan pertama memakan ~20 jam dari estimasi 9 (~2×); estimasi Mode Latihan di §7.2–7.4 kemungkinan terlalu rendah dan dikalibrasi ulang setelah L0.10. Catatan per L0.9b: ~1 jam dari estimasi 1. Catatan per L0.10: 6 jam dari estimasi 6; Mode Latihan total 27 jam dari estimasi 16 (~1,7×, terutama dari L0.9a); kalibrasi ulang §7.2 setelah MO-1.)
 
 ## 9. Keputusan Terbuka
 
