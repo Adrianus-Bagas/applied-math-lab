@@ -109,3 +109,12 @@ Log handoff antar-thread. Satu entri per sub-milestone, ditambahkan saat thread 
 - Pertanyaan terbuka: brotli/`wasm-opt` dan Web Worker (D6.1); DNS build Docker di WSL sempat gagal (`EAI_AGAIN`).
 - Berikutnya: MO-1.1 Skenario, satuan, semantik waktu, asumsi.
 - Jam: estimasi 4 / aktual ~3
+
+## ✅ [MO-1.1] Skenario, satuan, semantik waktu, asumsi — 2026-11-12
+
+- Selesai: `docs/mathematics/mealops/model.md` §1. Jam kejadian di rute (`A_j = T_i + s_i + τ_ij`, `T_j = max(A_j, a_j)`, `W_j`), bukti batas mulai layanan setara batas tiba, jam berangkat paling lambat (mundur dari deadline). Holding `h_j = m − f_b`, dekomposisi teleskopik, jendela `f_b` dari dua sisi. Contoh hitung tangan untuk keduanya.
+- Keputusan: waktu menit bulat sejak 00:00, durasi turunan dibulatkan ke atas saat instans dibuat; satu hari operasi `[0, 1440)`; `d_j` membatasi `T_j` (Solomon); notasi §8.1 v3.1 kanonik, tambahan `A_j`, `W_j`; asumsi baru `δ ≥ s_j` dan ketaksamaan segitiga `τ`, ditolak saat validasi instans. `PROJECT_CONTEXT` v1.13.
+- File yang berubah: `docs/mathematics/mealops/model.md`, `docs/PROGRESS.md`, `PROJECT_CONTEXT.md`.
+- Pertanyaan terbuka: rumus umum holding minimum (MO-1.5); trip yang membawa lebih dari satu batch (MO-1.5); penskalaan instans Solomon ke bilangan bulat (MO-2.3).
+- Berikutnya: MO-1.2 Model A CVRPTW.
+- Jam: estimasi 4 / aktual ~3
