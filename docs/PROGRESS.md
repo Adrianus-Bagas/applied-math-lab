@@ -118,3 +118,12 @@ Log handoff antar-thread. Satu entri per sub-milestone, ditambahkan saat thread 
 - Pertanyaan terbuka: rumus umum holding minimum (MO-1.5); trip yang membawa lebih dari satu batch (MO-1.5); penskalaan instans Solomon ke bilangan bulat (MO-2.3).
 - Berikutnya: MO-1.2 Model A CVRPTW.
 - Jam: estimasi 4 / aktual ~3
+
+## ✅ [MO-1.2] Model A CVRPTW — 2026-11-13
+
+- Selesai: `model.md` §2. Graf dengan dua salinan dapur (`n(n+1)` arc), formulasi dua-indeks F0–F8 (`x_ij`, `T_j`, `u_j`), penurunan Big-M terkecil (`M = Q`; `M_ij = max{0, d'_i + s_i + τ_ij − a'_j}`), bukti subtour hilang (kapasitas, waktu), kesetaraan F4–F7 dengan pemeriksaan rute lewat jadwal tercepat `T*`, praproses arc mustahil. Contoh n = 4 diverifikasi enumerasi (8 solusi layak, optimum 25).
+- Keputusan: `q_j` bulat ≥ 1 (§1.7); jam dapur `[e_0, l_0]` dilebur ke jendela efektif `a'_j`, `d'_j` (bersandar pada B6); eliminasi subtour bersandar pada kapasitas; objektif Model A = total jarak. `PROJECT_CONTEXT` v1.14.
+- File yang berubah: `docs/mathematics/mealops/model.md`, `docs/PROGRESS.md`, `PROJECT_CONTEXT.md`.
+- Pertanyaan terbuka: objektif hierarkis Solomon (kendaraan dulu, lalu jarak) → MO-2.3/MO-6.3; indeks pada jadwal tercepat (`T_i`, bukan `A_i`) dan uji arc (deadline node tujuan) perlu latihan ulang di MO-1.3.
+- Berikutnya: MO-1.3 Contoh hitung tangan feasible + infeasible.
+- Jam: estimasi 6 / aktual ~4
