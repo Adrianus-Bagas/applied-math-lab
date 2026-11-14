@@ -127,3 +127,12 @@ Log handoff antar-thread. Satu entri per sub-milestone, ditambahkan saat thread 
 - Pertanyaan terbuka: objektif hierarkis Solomon (kendaraan dulu, lalu jarak) → MO-2.3/MO-6.3; indeks pada jadwal tercepat (`T_i`, bukan `A_i`) dan uji arc (deadline node tujuan) perlu latihan ulang di MO-1.3.
 - Berikutnya: MO-1.3 Contoh hitung tangan feasible + infeasible.
 - Jam: estimasi 6 / aktual ~4
+
+## ✅ [MO-1.3] Contoh hitung tangan feasible + infeasible — 2026-11-14
+
+- Selesai: `model.md` §3. Tiga tingkat gagal (input tidak valid, instans tidak layak, solusi tidak layak), resep hitung tangan, instans H5 (`n = 5`; tabel 20 arc, 10 mustahil; 9 solusi layak, optimum unik 32), jebakan indeks, lima solusi tidak layak, empat varian instans tidak layak V1–V4 beserta buktinya. Semua diverifikasi enumerasi. Latihan dua putaran.
+- Keputusan: tiga tingkat dilaporkan terpisah; H5 dan V1–V4 menjadi fixture MO-2.3; batas bawah kendaraan = maks(`⌈Σq/Q⌉`, ukuran kelompok saling tak serute). `PROJECT_CONTEXT` v1.15.
+- File yang berubah: `docs/mathematics/mealops/model.md`, `docs/PROGRESS.md`, `PROJECT_CONTEXT.md`.
+- Pertanyaan terbuka: "pulang setelah `l_0`" dilaporkan terpisah dari pelanggaran jendela? (MO-3.2); pembedaan input tidak valid vs instans tidak layak perlu diulang (MO-2.1); `max(A_j, a'_j)` di node tengah sempat terlewat, jadi tabel selalu memakai kolom `a'_j`.
+- Berikutnya: MO-1.4 Model B multi-trip + pemecahan demand.
+- Jam: estimasi 4 / aktual ~2

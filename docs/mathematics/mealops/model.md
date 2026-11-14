@@ -1,6 +1,6 @@
 # MealOps — Model Matematis
 
-> **Status:** §1 selesai (MO-1.1), §2 selesai (MO-1.2). §3 dan seterusnya ditambahkan di MO-1.3 sampai MO-1.6.
+> **Status:** §1 selesai (MO-1.1), §2 selesai (MO-1.2), §3 selesai (MO-1.3). §4 dan seterusnya ditambahkan di MO-1.4 sampai MO-1.6.
 > **Rujukan:** `PROJECT_CONTEXT` MealOps v3.1 §8. Glosarium §8.1 di sana adalah notasi kanonik; dokumen ini hanya menambah notasi yang belum ada dan menetapkan semantiknya.
 > **Catatan:** semua angka di contoh bersifat ilustratif. $H^{max}$ adalah parameter kebijakan, bukan standar keamanan pangan.
 
@@ -393,3 +393,186 @@ Kembali ke dapur pada $530 + 10 + 25 = 565$ dan $540 + 10 + 30 = 580$. Biaya $(4
 | C6  | Kelayakan satu rute diperiksa dengan satu lintasan maju jadwal tercepat (§2.7), setara dengan F4–F7            |
 
 Yang belum dicakup Model A: lebih dari satu trip per kendaraan dan waktu muat $\lambda$ (Model B, MO-1.4), produksi batch (Model C), serta release date dan holding (Model D, MO-1.5).
+
+## 3. Contoh hitung tangan Model A: layak dan tidak layak
+
+Bagian ini tidak menambah rumus. Isinya satu instans kecil (H5) yang dikerjakan lengkap dengan tangan, beserta contoh solusi dan instans yang tidak layak. Semua angka diverifikasi dengan enumerasi, dan instans beserta nilai harapannya menjadi fixture di MO-2.3.
+
+### 3.1 Tiga tingkat kegagalan
+
+| Tingkat             | Artinya                                                  | Contoh                    | Yang menolak                |
+| ------------------- | -------------------------------------------------------- | ------------------------- | --------------------------- |
+| Input tidak valid   | Data melanggar §1.7; soalnya sendiri salah               | $a_j > d_j$, $q_j > Q$    | Validasi instans (MO-2.1)   |
+| Instans tidak layak | Data sah, tetapi tidak ada satu pun solusi yang layak    | Dapur tutup terlalu cepat | Solver melapor _infeasible_ |
+| Solusi tidak layak  | Instans punya solusi, tetapi solusi ini melanggar aturan | Muatan $115 > 100$        | Validator (MO-3.2)          |
+
+Cara memilih tingkat, ditanyakan berurutan:
+
+1. Apakah datanya melanggar daftar §1.7? Jika ya: input tidak valid.
+2. Apakah ada minimal satu solusi yang lolos? Jika tidak: instans tidak layak.
+3. "Solusi tidak layak" hanya dipakai saat menilai satu solusi tertentu.
+
+**Beban bukti tidak simetris.** Menunjukkan instans layak cukup dengan satu solusi yang lolos pemeriksaan (satu saksi). Menunjukkan instans tidak layak memerlukan argumen yang menutup semua kemungkinan solusi sekaligus.
+
+### 3.2 Resep hitung tangan
+
+1. **Periksa input** terhadap §1.7.
+2. **Jendela efektif** setiap node: $a'_j = \max(a_j,\ e_0 + \tau_{0j})$ dan $d'_j = \min(d_j,\ l_0 - s_j - \tau_{j,n+1})$. Bila ada $a'_j > d'_j$, instans tidak layak.
+3. **Batas bawah kendaraan:** $\lceil \sum_j q_j / Q \rceil$. Bila melebihi $\lvert K \rvert$, instans tidak layak.
+4. **Uji arc** (§2.8). Tulis dulu ujung $j$ dan $d'_j$-nya, baru hitung $a'_i + s_i + \tau_{ij}$ dari pangkal $i$.
+5. **Periksa setiap rute** (§2.7) dalam tabel berkolom $A_j$, $a'_j$, $T^{\ast}_j = \max(A_j, a'_j)$, $W_j$, $d'_j$. Kolom $a'_j$ ditulis supaya $\max$ tidak terlewat.
+6. **Periksa struktur dan armada** (setiap node tepat sekali, jumlah rute $\le \lvert K \rvert$), lalu hitung biaya.
+
+### 3.3 Instans H5
+
+Data: $n = 5$, $\lvert K \rvert = 2$, $Q = 100$, dapur buka $[e_0, l_0] = [480, 680]$. Jarak simetris $c_{ij}$ dalam ratusan meter, $\tau_{ij} = 5 c_{ij}$ menit. Di tabel, node $0$ adalah dapur, baik sebagai titik berangkat maupun titik kembali.
+
+| $c_{ij}$ |   0 |   1 |   2 |   3 |   4 |   5 |
+| -------- | --: | --: | --: | --: | --: | --: |
+| **0**    |   – |   3 |   6 |   5 |   4 |   4 |
+| **1**    |   3 |   – |   3 |   6 |   5 |   5 |
+| **2**    |   6 |   3 |   – |   5 |   8 |   8 |
+| **3**    |   5 |   6 |   5 |   – |   5 |   9 |
+| **4**    |   4 |   5 |   8 |   5 |   – |   8 |
+| **5**    |   4 |   5 |   8 |   9 |   8 |   – |
+
+| Node | $q_j$ | $s_j$ | $a_j$ | $d_j$ | $e_0 + \tau_{0j}$ | $l_0 - s_j - \tau_{j0}$ | $a'_j$ | $d'_j$ |
+| ---- | ----: | ----: | ----: | ----: | ----------------: | ----------------------: | -----: | -----: |
+| 1    |    25 |    10 |   560 |   610 |               495 |                     655 |    560 |    610 |
+| 2    |    40 |    15 |   510 |   570 |               510 |                     635 |    510 |    570 |
+| 3    |    20 |    10 |   600 |   650 |               505 |                     645 |    600 |    645 |
+| 4    |    35 |     5 |   480 |   530 |               500 |                     655 |    500 |    530 |
+| 5    |    15 |    10 |   580 |   610 |               500 |                     650 |    580 |    610 |
+
+Dua nilai berubah:
+
+- $a'_4 = 500$: node 4 menerima sejak 480, tetapi kendaraan baru bisa sampai pada $480 + 20 = 500$.
+- $d'_3 = 645$: node 3 menerima sampai 650, tetapi layanan harus mulai paling lambat 645 agar kendaraan pulang sebelum $l_0$ ($645 + 10 + 25 = 680$).
+
+Total demand $135$, jadi dibutuhkan paling sedikit $\lceil 135 / 100 \rceil = 2$ kendaraan.
+
+### 3.4 Uji arc
+
+Isi sel adalah $a'_i + s_i + \tau_{ij}$ untuk pangkal $i$ (baris) dan ujung $j$ (kolom). Arc mustahil, dicetak tebal, bila nilainya melebihi $d'_j$ di baris kedua.
+
+| Pangkal $i$ ($a'_i + s_i$) |   $j=1$ |   $j=2$ | $j=3$ |   $j=4$ |   $j=5$ |
+| -------------------------- | ------: | ------: | ----: | ------: | ------: |
+| $d'_j$                     |     610 |     570 |   645 |     530 |     610 |
+| 1 ($560 + 10$)             |       – | **585** |   600 | **595** |     595 |
+| 2 ($510 + 15$)             |     540 |       – |   550 | **565** |     565 |
+| 3 ($600 + 10$)             | **640** | **635** |     – | **635** | **655** |
+| 4 ($500 + 5$)              |     530 |     545 |   530 |       – |     545 |
+| 5 ($580 + 10$)             | **615** | **630** |   635 | **630** |       – |
+
+Sepuluh dari dua puluh arc mustahil; tidak ada yang mustahil karena kapasitas (pasangan terbesar $40 + 35 = 75$). Akibatnya:
+
+- Kolom 4 seluruhnya tebal: node 4 selalu node **pertama** di rutenya.
+- Baris 3 seluruhnya tebal: node 3 selalu node **terakhir** di rutenya.
+- Di kolom 2 hanya arc $(4,2)$ yang lolos: node 2 adalah node pertama, atau tepat setelah node 4.
+
+### 3.5 Solusi layak S1
+
+Rute $0 \to 2 \to 1 \to 5 \to 0$ dan $0 \to 4 \to 3 \to 0$.
+
+| Rute | Node | Muatan | $A_j$                 | $a'_j$ | $T^{\ast}_j$ | $W_j$ | $\le d'_j$ |
+| ---- | ---- | -----: | --------------------- | -----: | -----------: | ----: | ---------- |
+| 1    | 2    |     40 | $480 + 30 = 510$      |    510 |          510 |     0 | ya (570)   |
+| 1    | 1    |     65 | $510 + 15 + 15 = 540$ |    560 |          560 |    20 | ya (610)   |
+| 1    | 5    |     80 | $560 + 10 + 25 = 595$ |    580 |          595 |     0 | ya (610)   |
+| 2    | 4    |     35 | $480 + 20 = 500$      |    500 |          500 |     0 | ya (530)   |
+| 2    | 3    |     55 | $500 + 5 + 25 = 530$  |    600 |          600 |    70 | ya (645)   |
+
+Kembali ke dapur pada $595 + 10 + 20 = 625$ dan $600 + 10 + 25 = 635$. Biaya $(6 + 3 + 5 + 4) + (4 + 5 + 5) = 32$, yaitu $3200$ m. S1 layak.
+
+**Semua solusi layak.** Enumerasi memberi 9 solusi layak; S1 satu-satunya yang termurah.
+
+| Biaya | Rute 1    | Rute 2    |
+| ----: | --------- | --------- |
+|    32 | $(2,1,5)$ | $(4,3)$   |
+|    34 | $(1,5)$   | $(4,2,3)$ |
+|    34 | $(4,1,5)$ | $(2,3)$   |
+|    36 | $(2,1,3)$ | $(4,5)$   |
+|    36 | $(4,2,1)$ | $(5,3)$   |
+|    38 | $(1,3)$   | $(4,2,5)$ |
+|    38 | $(2,1)$   | $(4,5,3)$ |
+|    38 | $(4,1,3)$ | $(2,5)$   |
+|    40 | $(4,1)$   | $(2,5,3)$ |
+
+### 3.6 Jebakan hitung tangan
+
+**Rute $0 \to 2 \to 1 \to 5 \to 3 \to 0$** (muatan tepat $100$, masih boleh karena syaratnya $\le Q$). Hitungan yang benar melanjutkan tabel S1: $A_3 = 595 + 10 + 45 = 650$, $T^{\ast}_3 = 650 > d'_3 = 645$, rute gagal. Tiga kekeliruan yang membuatnya tampak layak:
+
+| Kekeliruan                                                        | Hitungan                                                              | Putusan keliru |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------- | -------------- |
+| Membawa $A_1 = 540$, atau lupa $\max$ dengan $a'_1$ ($T_1 = 540$) | $A_5 = 540 + 10 + 25 = 575$, $T_5 = 580$, $A_3 = 580 + 10 + 45 = 635$ | $635 \le 645$  |
+| Memakai $d_3 = 650$, bukan $d'_3$                                 | $650 \le 650$, padahal pulang pada $650 + 10 + 25 = 685 > 680$        | tampak layak   |
+| Memakai waktu layan node tujuan ($s_1 = 10$) di arc $(2,1)$       | $A_1 = 510 + 10 + 15 = 535$, bukan $540$                              | angka bergeser |
+
+Kekeliruan pertama selalu membuat jadwal tampak **lebih cepat**, jadi kesalahannya searah: rute yang gagal bisa tampak layak, tidak pernah sebaliknya.
+
+**Uji arc memakai deadline node tujuan.** Arc $(2,4)$: $510 + 15 + 40 = 565$ dibandingkan dengan $d'_4 = 530$, jadi mustahil. Membandingkannya dengan $610$ (deadline node lain) memberi putusan keliru.
+
+**Uji arc hanya syarat perlu.** Pada rute $0 \to 1 \to 5 \to 3 \to 0$, arc $(1,5)$ dan $(5,3)$ keduanya lolos ($595 \le 610$ dan $635 \le 645$), tetapi rutenya gagal: $T^{\ast}_5 = 595$, sehingga $A_3 = 650 > 645$. Arc $(5,3)$ lolos karena dihitung dari $a'_5 = 580$, sedangkan di rute ini node 5 baru mulai dilayani pada 595.
+
+### 3.7 Solusi tidak layak
+
+Instansnya tetap H5; setiap baris adalah satu solusi yang melanggar satu aturan.
+
+| Solusi                      | Yang dilanggar         | Hitungan                                                                             |
+| --------------------------- | ---------------------- | ------------------------------------------------------------------------------------ |
+| $(4,2,1,5)$ dan $(3)$       | Kapasitas              | $35 + 40 + 25 + 15 = 115 > 100$; waktunya lolos, node 5 tepat di $610$               |
+| $(2,1)$ dan $(4,3,5)$       | Jendela waktu          | $A_5 = 600 + 10 + 45 = 655 > 610$                                                    |
+| $(2,1,5,3)$ dan $(4)$       | Jendela waktu ($d'_3$) | $T^{\ast}_3 = 650 \le d_3$, tetapi $> d'_3 = 645$: kendaraan pulang pada $685 > l_0$ |
+| $(2,1,5)$ dan $(4)$         | Struktur (F1)          | Node 3 tidak dikunjungi                                                              |
+| $(2,1)$, $(4,3)$, dan $(5)$ | Armada (F3)            | 3 rute $> \lvert K \rvert = 2$, walau setiap rutenya layak (biaya 34)                |
+
+### 3.8 Instans tidak layak
+
+Setiap varian mengubah H5 seperlunya; datanya tetap sah menurut §1.7.
+
+**V1, satu node mustahil.** $l_0 = 630$. Maka $d'_3 = \min(650,\ 630 - 10 - 25) = 595 < a'_3 = 600$. Kendaraan khusus pun paling cepat mulai melayani pada 600, selesai 610, dan pulang 635 $> 630$.
+
+**V2, kapasitas total.** $\lvert K \rvert = 1$. Total demand $135 > 1 \cdot 100$.
+
+**V3, kapasitas tidak bisa dibagi.** $q = (60, 60, 10, 60, 10)$. Total $200 \le 2 \cdot 100$, jadi hitungan total lolos. Tetapi node 1, 2, 4 masing-masing berdemand 60 dan harus masuk ke dua kendaraan, sehingga ada dua di antaranya yang sekendaraan (prinsip sarang merpati): $60 + 60 = 120 > 100$.
+
+**V4, waktu tidak bisa dibagi.** Node 2, 3, 5 berjendela sama, $[540, 560]$. Keenam arc di antara mereka mustahil:
+
+| Arc     | $a'_i + s_i + \tau_{ij}$ | $d'_j$ |
+| ------- | -----------------------: | -----: |
+| $(2,3)$ |    $540 + 15 + 25 = 580$ |    560 |
+| $(2,5)$ |    $540 + 15 + 40 = 595$ |    560 |
+| $(3,2)$ |    $540 + 10 + 25 = 575$ |    560 |
+| $(3,5)$ |    $540 + 10 + 45 = 595$ |    560 |
+| $(5,2)$ |    $540 + 10 + 40 = 590$ |    560 |
+| $(5,3)$ |    $540 + 10 + 45 = 595$ |    560 |
+
+Tidak ada dua dari ketiga node itu yang bisa serute, jadi dibutuhkan 3 rute, padahal $\lvert K \rvert = 2$.
+
+**Pola umum.** V3 dan V4 memakai argumen yang sama: bila ada sekelompok node yang **berpasangan tidak bisa serute** (arc di antara dua node mustahil di kedua arah, atau $q_i + q_j > Q$), maka ukuran kelompok itu adalah batas bawah jumlah kendaraan. Digabung dengan langkah 3 resep:
+
+$$\text{jumlah kendaraan} \ \ge\ \max \left( \left\lceil \frac{\sum_j q_j}{Q} \right\rceil,\ \text{ukuran kelompok saling tak serute terbesar} \right)$$
+
+Dengan $\lvert K \rvert = 3$, V3 dan V4 menjadi layak (optimum 36 dan 34). Tidak semua instans tidak layak punya bukti sependek ini; untuk instans tiny, solver exact (MO-6.2) yang memutuskan.
+
+**Pembanding: input tidak valid dan instans layak.** Perubahan lain pada H5:
+
+| Perubahan   | Tingkat             | Alasan                                                                 |
+| ----------- | ------------------- | ---------------------------------------------------------------------- |
+| $q_2 = 120$ | Input tidak valid   | $q_2 > Q$; demand harus dipecah dulu (A6, §1.7 nomor 6)                |
+| $Q = 30$    | Input tidak valid   | $q_2 = 40$ dan $q_4 = 35$ melebihi $Q$                                 |
+| $d_5 = 570$ | Input tidak valid   | $a_5 = 580 > d_5$ (§1.7 nomor 2)                                       |
+| $e_0 = 530$ | Instans tidak layak | $a'_4 = 530 + 20 = 550 > d'_4 = 530$                                   |
+| $d_4 = 495$ | Instans tidak layak | $a_4 \le d_4$ sah, tetapi $a'_4 = 500 > d'_4 = 495$                    |
+| $d_2 = 540$ | Layak               | Saksi S1: $T^{\ast}_2 = 510 \le 540$                                   |
+| $l_0 = 640$ | Layak               | $d'_3 = 605$; saksi S1: $T^{\ast}_3 = 600 \le 605$, pulang 625 dan 635 |
+
+### 3.9 Keputusan MO-1.3
+
+| #   | Keputusan                                                                                                                                   |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| E1  | Tiga tingkat kegagalan dibedakan dan dilaporkan terpisah: input tidak valid, instans tidak layak, solusi tidak layak (§3.1)                 |
+| E2  | H5, solusi di §3.5 dan §3.7, serta varian V1–V4 menjadi fixture hitung tangan (MO-2.3); nilai harapannya adalah angka di bagian ini         |
+| E3  | Batas bawah jumlah kendaraan: yang terbesar dari $\lceil \sum q / Q \rceil$ dan ukuran kelompok saling tak serute (§3.8); dipakai di MO-6.3 |
+
+Pertanyaan terbuka untuk MO-3.2: apakah "pulang setelah $l_0$" dilaporkan sebagai pelanggaran tersendiri atau sebagai pelanggaran jendela efektif $d'_j$.
