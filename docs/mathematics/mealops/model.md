@@ -1,6 +1,6 @@
 # MealOps — Model Matematis
 
-> **Status:** §1 selesai (MO-1.1), §2 selesai (MO-1.2), §3 selesai (MO-1.3). §4 dan seterusnya ditambahkan di MO-1.4 sampai MO-1.6.
+> **Status:** §1 selesai (MO-1.1), §2 selesai (MO-1.2), §3 selesai (MO-1.3), §4 selesai (MO-1.4). §5 dan seterusnya ditambahkan di MO-1.5 dan MO-1.6.
 > **Rujukan:** `PROJECT_CONTEXT` MealOps v3.1 §8. Glosarium §8.1 di sana adalah notasi kanonik; dokumen ini hanya menambah notasi yang belum ada dan menetapkan semantiknya.
 > **Catatan:** semua angka di contoh bersifat ilustratif. $H^{max}$ adalah parameter kebijakan, bukan standar keamanan pangan.
 
@@ -576,3 +576,363 @@ Dengan $\lvert K \rvert = 3$, V3 dan V4 menjadi layak (optimum 36 dan 34). Tidak
 | E3  | Batas bawah jumlah kendaraan: yang terbesar dari $\lceil \sum q / Q \rceil$ dan ukuran kelompok saling tak serute (§3.8); dipakai di MO-6.3 |
 
 Pertanyaan terbuka untuk MO-3.2: apakah "pulang setelah $l_0$" dilaporkan sebagai pelanggaran tersendiri atau sebagai pelanggaran jendela efektif $d'_j$.
+
+## 4. Model B — multi-trip dan pemecahan demand
+
+Model B memperluas Model A ke dua arah. Pertama, titik layanan yang demandnya melebihi $Q$ dipecah menjadi beberapa node (§4.1). Kedua, setiap kendaraan boleh menjalani sampai $\rho$ trip dalam sehari, dengan waktu muat $\lambda$ sebelum setiap trip berikutnya (§4.3–4.5). Produksi, release date, dan holding belum masuk (Model C dan D, MO-1.5).
+
+Seperti Model A, formulasi di §4.5 adalah spesifikasi. Validator dan core memeriksa solusi lewat ringkasan trip (§4.3) dan rantai trip (§4.4).
+
+### 4.1 Pemecahan demand
+
+Notasi: $q$ = demand satu titik layanan, $k$ = jumlah potongan, $r$ = ukuran potongan terakhir.
+
+**Jumlah potongan paling sedikit.**
+
+1. Setiap potongan paling besar $Q$, jadi $k$ potongan memuat paling banyak $kQ$ porsi.
+2. Semua porsi harus termuat: $kQ \ge q$, yaitu $k \ge q / Q$.
+3. $k$ bilangan bulat, dan bilangan bulat terkecil yang $\ge q / Q$ adalah $\lceil q / Q \rceil$.
+
+**Ukuran potongan: aturan "penuh dulu".** Potongan ke-1 sampai ke-$(k-1)$ berukuran $Q$; potongan terakhir adalah sisanya.
+
+$$k = \left\lceil \frac{q}{Q} \right\rceil, \qquad r = q - (k-1)Q$$
+
+**Bukti $1 \le r \le Q$** (sehingga setiap potongan sah menurut §1.7 nomor 6):
+
+1. Arti $k = \lceil q / Q \rceil$ adalah $k - 1 < q / Q \le k$.
+2. Kalikan dengan $Q > 0$: $(k-1)Q < q \le kQ$.
+3. Kurangi dengan $(k-1)Q$: $0 < r \le Q$.
+4. $r$ bilangan bulat dan positif, jadi $r \ge 1$.
+
+**Yang diwarisi potongan** dari titik asalnya $\sigma(j)$: jendela $a_j$, $d_j$, waktu konsumsi $m_{\sigma(j)}$, dan buffer $\delta_{\sigma(j)}$. Antar-potongan $\tau_{jj'} = 0$ dan $c_{jj'} = 0$; jarak dan waktu tempuh ke node lain sama dengan milik titik asalnya, sehingga ketaksamaan segitiga (B6) tetap berlaku. Waktu layan dihitung ulang per potongan, $s_j = \lceil s^0 + \eta q_j \rceil$, karena setiap potongan adalah pemberhentian tersendiri.
+
+**Contoh** dengan $Q = 100$, $s^0 = 5$, $\eta = 0{,}02$:
+
+| $q$ | $k$ | Potongan          | $s_j$      |
+| --: | --: | ----------------- | ---------- |
+| 250 |   3 | 100, 100, 50      | 7, 7, 6    |
+| 330 |   4 | 100, 100, 100, 30 | 7, 7, 7, 6 |
+
+Potongan 30 memberi $5 + 0{,}6 = 5{,}6$, disimpan $6$ (B1).
+
+**Akibat.** Potongan berukuran $Q$ selalu sendirian di tripnya ($0 \to j \to n+1$), karena menambah node apa pun membuat muatan $\ge Q + 1$. Dengan aturan "penuh dulu", setiap titik punya paling banyak satu potongan yang tidak penuh, jadi dua potongan dari titik yang sama tidak pernah serute.
+
+**Ini aproksimasi, bukan split delivery sebenarnya** (A6, v3.1 §8.4). Ukuran potongan dikunci sebelum optimasi, jadi sebagian solusi hilang. Contoh dengan $Q = 100$, titik X berdemand 120, ditambah titik lain (jumlah trip minimum dihitung dengan enumerasi pengepakan):
+
+| Titik lain | $\lceil \sum q / Q \rceil$ | Penuh dulu $(100, 20)$ | Rata $(60, 60)$ | Pemecahan bebas                 |
+| ---------- | -------------------------: | ---------------------: | --------------: | ------------------------------- |
+| 80         |                          2 |                      2 |               3 | 2                               |
+| 40, 40     |                          2 |                      2 |               2 | 2                               |
+| 70, 70, 40 |                          3 |                      4 |               4 | 3, lewat tiga potong 30, 30, 60 |
+
+- Baris 1: "rata" kalah karena $60 + 80 > 100$.
+- Baris 3: tidak ada pemecahan dua potong yang mencapai 3 trip. Batas bawah $\lceil \sum q / Q \rceil$ tetap sah, tetapi belum tentu tercapai.
+
+Alasan memilih "penuh dulu": deterministik, sisa $r$ sekecil mungkin sehingga paling mudah digabung, dan trip potongan penuh sudah pasti bentuknya.
+
+### 4.2 Notasi tambahan
+
+| Notasi                        | Arti                                                                                 | Satuan |
+| ----------------------------- | ------------------------------------------------------------------------------------ | ------ |
+| $(k, r)$                      | Trip ke-$r$ milik kendaraan $k$, dengan $r = 1, \dots, \rho$                         | —      |
+| $X_{ij}$                      | $\sum_{k,r} x^{kr}_{ij}$: bernilai 1 bila arc $(i,j)$ dipakai trip mana pun          | —      |
+| $\Delta_j$                    | Lama dari berangkat sampai mulai layanan di $j$ bila kendaraan tidak pernah menunggu | menit  |
+| $\Delta$                      | Durasi satu trip bila kendaraan tidak pernah menunggu                                | menit  |
+| $E^{\ast}$                    | Jam pulang trip pada jadwal tercepat (berangkat $e_0$)                               | waktu  |
+| $S^{max}$                     | Jam berangkat paling lambat yang masih layak untuk trip itu                          | waktu  |
+| $M^S_j,\ M^E_i,\ M^{\lambda}$ | Big-M baris berangkat, pulang, dan urutan trip (§4.7)                                | menit  |
+
+Huruf $\Delta$ dipakai, bukan $D$, karena $D_b$ dan $D^{max}$ sudah berarti ukuran batch di v3.1 §8.1. $T^{\ast}_j$ adalah jadwal tercepat §2.7, dihitung per trip.
+
+Notasi v3.1 yang dipakai di bagian ini: $\rho$, $x^{kr}_{ij}$, $y^{kr}_j$, $w^{kr}$, $S^{kr}$, $E^{kr}$, $\lambda$.
+
+### 4.3 Satu trip sebagai fungsi jam berangkat
+
+Di Model A kendaraan selalu bisa berangkat pada $e_0$. Trip kedua berangkat pada jam $S$ yang bergantung pada trip pertama, jadi diperlukan rumus $T_j$ untuk sembarang $S \ge e_0$.
+
+Untuk trip $0 \to j_1 \to \dots \to j_m \to n+1$:
+
+$$\Delta_{j_1} = \tau_{0 j_1}, \qquad \Delta_{j_{t+1}} = \Delta_{j_t} + s_{j_t} + \tau_{j_t j_{t+1}}, \qquad \Delta = \Delta_{j_m} + s_{j_m} + \tau_{j_m, n+1}$$
+
+$$E^{\ast} = T^{\ast}_{j_m} + s_{j_m} + \tau_{j_m, n+1}$$
+
+Di setiap langkah, waktu layan yang dijumlahkan adalah milik node yang **ditinggalkan** ($s_{j_t}$ pada arc dari $j_t$), termasuk $s_{j_m}$ pada arc pulang.
+
+**Proposisi.** Untuk setiap $S \ge e_0$:
+
+$$T_j(S) = \max \left( S + \Delta_j,\ T^{\ast}_j \right), \qquad E(S) = \max \left( S + \Delta,\ E^{\ast} \right)$$
+
+**Bukti.** Pakai §1.4: $T_{j_1} = \max(S + \tau_{0 j_1},\ a_{j_1})$ dan $T_j = \max(T_i + s_i + \tau_{ij},\ a_j)$.
+
+1. **Node pertama.** Karena $S \ge e_0$, berlaku $S + \tau_{0 j_1} \ge e_0 + \tau_{0 j_1}$. Menambahkan $e_0 + \tau_{0 j_1}$ ke dalam $\max$ tidak mengubah hasilnya, jadi $T_{j_1} = \max(S + \tau_{0 j_1},\ a_{j_1},\ e_0 + \tau_{0 j_1}) = \max(S + \Delta_{j_1},\ a'_{j_1}) = \max(S + \Delta_{j_1},\ T^{\ast}_{j_1})$.
+2. **Langkah induksi.** Andaikan $T_i = \max(S + \Delta_i,\ T^{\ast}_i)$, dan tulis $g = s_i + \tau_{ij}$ untuk node berikutnya $j$.
+3. **$a_j$ boleh diganti $a'\_j$.** $T_i + g \ge S + \Delta_j \ge e_0 + \Delta_j \ge e_0 + \tau_{0j}$; langkah terakhir dari B6 (jalan memutar tidak lebih singkat) dan $s \ge 0$. Jadi, seperti langkah 1, $T_j = \max(T_i + g,\ a_j) = \max(T_i + g,\ a'_j)$.
+4. **Konstanta masuk ke $\max$.** $T_i + g = \max(S + \Delta_i + g,\ T^{\ast}_i + g) = \max(S + \Delta_j,\ T^{\ast}_i + g)$.
+5. **Gabung.** $T_j = \max(S + \Delta_j,\ T^{\ast}_i + g,\ a'_j) = \max(S + \Delta_j,\ T^{\ast}_j)$, karena dua suku terakhir adalah definisi $T^{\ast}_j$.
+6. **Pulang.** Dapur tidak punya jendela, jadi $E = T_{j_m} + s_{j_m} + \tau_{j_m, n+1}$; tambahkan konstanta itu ke kedua isi $\max$. ∎
+
+Artinya: selama $S$ kecil, $T_j$ tertahan di $T^{\ast}_j$ (kendaraan menunggu); setelah itu setiap menit telat berangkat menjadi satu menit telat di node.
+
+**Akibat.**
+
+- **Model A adalah kasus $S = e_0$.** Dari definisi, $T^{\ast}_j \ge e_0 + \Delta_j$, jadi $T_j(e_0) = T^{\ast}_j$.
+- **Monoton.** $T_j(S)$ dan $E(S)$ tidak pernah turun bila $S$ naik.
+- **Kelayakan.** $T_j(S) \le d'_j$ berarti kedua isi $\max$ harus $\le d'_j$: (i) $T^{\ast}_j \le d'_j$ di semua node, yang tidak bergantung pada $S$, dan (ii) $S \le d'_j - \Delta_j$ di semua node. Jadi
+
+$$S^{max} = \min_{t = 1, \dots, m} \left( d'_{j_t} - \Delta_{j_t} \right)$$
+
+dan trip layak untuk jam berangkat $S$ jika dan hanya jika $T^{\ast}_j \le d'_j$ di semua node dan $e_0 \le S \le S^{max}$.
+
+- Bila (i) terpenuhi, otomatis $S^{max} \ge e_0$, karena $d'_j \ge T^{\ast}_j \ge e_0 + \Delta_j$. Pulang sebelum $l_0$ juga otomatis, karena sudah termuat dalam $d'_{j_m}$ (§2.3).
+
+Jadi satu trip yang layak cukup diwakili tiga angka $(\Delta,\ E^{\ast},\ S^{max})$.
+
+**Contoh, trip $(4, 2, 1)$ di H5.**
+
+| Node | $\Delta_j$          | $T^{\ast}_j$                      | $d'_j$ | $d'_j - \Delta_j$ |
+| ---- | ------------------- | --------------------------------- | -----: | ----------------: |
+| 4    | $20$                | $a'_4 = 500$                      |    530 |               510 |
+| 2    | $20 + 5 + 40 = 65$  | $\max(500 + 5 + 40,\ 510) = 545$  |    570 |               505 |
+| 1    | $65 + 15 + 15 = 95$ | $\max(545 + 15 + 15,\ 560) = 575$ |    610 |               515 |
+
+$\Delta = 95 + 10 + 15 = 120$, $E^{\ast} = 575 + 10 + 15 = 600$, $S^{max} = 505$. Berangkat 480 memberi $E = 600$; berangkat 505 memberi $E = \max(625, 600) = 625$, dengan $T_2 = 570$ tepat di batas.
+
+### 4.4 Rantai trip pada satu kendaraan
+
+$$S^{k1} \ge e_0, \qquad S^{k,r+1} \ge E^{kr} + \lambda$$
+
+Trip pertama tidak dikenai $\lambda$: muatnya dianggap selesai sebelum $e_0$ (diatur Model D lewat release date). Dengan begitu Model B dengan $\rho = 1$ persis Model A.
+
+**Berangkat secepat mungkin tidak pernah merugikan.** Menunda trip $r$ tidak pernah memajukan $E^{kr}$ (monoton, §4.3), jadi tidak pernah memajukan $S^{k,r+1}$ yang paling awal, sehingga syarat $S \le S^{max}$ di trip-trip berikutnya hanya bisa makin sulit. Bila suatu jadwal layak, jadwal "secepat mungkin" juga layak.
+
+**Pemeriksaan satu kendaraan**, untuk urutan trip yang sudah ditentukan:
+
+1. $S \leftarrow e_0$.
+2. Untuk setiap trip berurutan: gagal bila $S > S^{max}$; hitung $E = \max(S + \Delta,\ E^{\ast})$; lalu $S \leftarrow E + \lambda$.
+3. Bila sampai akhir tanpa gagal, kendaraan layak.
+
+**Contoh di H5, $\lambda = 10$.** Trip $(3)$: $\Delta = 60$, $E^{\ast} = 635$, $S^{max} = 645 - 25 = 620$. Trip $(2, 1)$: $\Delta = 85$, $E^{\ast} = 585$, $S^{max} = 540$.
+
+| Urutan           | Trip 1: $S \to E$ | Trip 2: $S$ vs $S^{max}$ | Trip 2: $E$            | Hasil |
+| ---------------- | ----------------- | ------------------------ | ---------------------- | ----- |
+| $(4,2,1)$, $(3)$ | $480 \to 600$     | $610 \le 620$            | $\max(670, 635) = 670$ | layak |
+| $(3)$, $(4,2,1)$ | $480 \to 635$     | $645 > 505$              | —                      | gagal |
+| $(2,1)$, $(3)$   | $480 \to 585$     | $595 \le 620$            | $\max(655, 635) = 655$ | layak |
+
+Urutan trip ikut menentukan kelayakan, jadi urutan adalah bagian dari keputusan (MO-11.2). Pada baris ketiga, $\lambda$ terbesar yang masih layak adalah $620 - 585 = 35$.
+
+### 4.5 Formulasi
+
+**Variabel.**
+
+| Variabel          | Tipe    | Arti                                                                   |
+| ----------------- | ------- | ---------------------------------------------------------------------- |
+| $x^{kr}_{ij}$     | biner   | Trip $(k,r)$ berjalan langsung dari $i$ ke $j$                         |
+| $y^{kr}_j$        | biner   | Node $j$ dilayani trip $(k,r)$                                         |
+| $w^{kr}$          | biner   | Trip $(k,r)$ dipakai                                                   |
+| $S^{kr},\ E^{kr}$ | kontinu | Jam trip berangkat dari dan kembali ke dapur                           |
+| $T_j$             | kontinu | Mulai layanan di node $j$ (satu indeks: setiap node dikunjungi sekali) |
+| $u_j$             | kontinu | Muatan kumulatif sampai node $j$ di tripnya                            |
+
+**(G0) Objektif:** total jarak semua trip.
+
+$$\min \sum_{k,r} \sum_{(i,j) \in \mathcal{A}} c_{ij}\, x^{kr}_{ij}$$
+
+**(G1) Setiap node dilayani tepat satu trip.**
+
+$$\sum_{k,r} y^{kr}_j = 1 \qquad \forall j \in N$$
+
+**(G2) Arc masuk dan keluar mengikuti $y$.** Trip yang melayani $j$ masuk sekali dan keluar sekali; trip lain tidak menyentuh $j$.
+
+$$x^{kr}_{0j} + \sum_{i \in N,\ i \ne j} x^{kr}_{ij} = y^{kr}_j = \sum_{i \in N,\ i \ne j} x^{kr}_{ji} + x^{kr}_{j,n+1} \qquad \forall j, k, r$$
+
+**(G3) Trip yang dipakai berangkat tepat sekali.** Pulang tepat sekali mengikuti dari G2 dengan hitungan dua cara (§2.6).
+
+$$\sum_{j \in N} x^{kr}_{0j} = w^{kr} \qquad \forall k, r$$
+
+**(G4) Kapasitas per trip.** Trip yang tidak dipakai tidak boleh melayani siapa pun.
+
+$$\sum_{j \in N} q_j\, y^{kr}_j \le Q\, w^{kr} \qquad \forall k, r$$
+
+**(G5) Propagasi muatan.**
+
+$$u_j \ge u_i + q_j - Q (1 - X_{ij}), \qquad q_j \le u_j \le Q \qquad \forall i, j \in N,\ i \ne j$$
+
+**(G6) Propagasi waktu: berangkat, antar-node, pulang.**
+
+$$T_j \ge S^{kr} + \tau_{0j} - M^S_j (1 - x^{kr}_{0j}) \qquad \forall j, k, r$$
+
+$$T_j \ge T_i + s_i + \tau_{ij} - M_{ij} (1 - X_{ij}) \qquad \forall i, j \in N,\ i \ne j$$
+
+$$E^{kr} \ge T_i + s_i + \tau_{i,n+1} - M^E_i (1 - x^{kr}_{i,n+1}) \qquad \forall i, k, r$$
+
+**(G7) Jendela dan jam dapur.**
+
+$$a'_j \le T_j \le d'_j, \qquad e_0 \le S^{kr} \le l_0, \qquad e_0 \le E^{kr} \le l_0$$
+
+**(G8) Urutan trip pada satu kendaraan**, aktif hanya bila trip berikutnya dipakai.
+
+$$S^{k,r+1} \ge E^{kr} + \lambda - M^{\lambda} (1 - w^{k,r+1}) \qquad \forall k,\ r < \rho$$
+
+**(G9) Slot dipakai berurutan; pemecah simetri antar-kendaraan.**
+
+$$w^{k,r+1} \le w^{kr}, \qquad w^{k+1,1} \le w^{k,1}$$
+
+**(G10) Domain.** $x^{kr}_{ij},\ y^{kr}_j,\ w^{kr} \in \lbrace 0, 1 \rbrace$.
+
+Karena $E^{kr} \le l_0$ tertulis eksplisit di G7, jendela $a_j$, $d_j$ biasa sudah cukup untuk kebenaran; $a'_j$, $d'_j$ dipakai karena tersirat oleh G6–G7 dan memperkecil Big-M.
+
+### 4.6 Dua perbaikan terhadap v3.1 §8.6
+
+**Propagasi muatan G5 ditambahkan.** Formulasi v3.1 tidak punya $u_j$, jadi siklus hanya dicegah propagasi waktu. Ambil dua node $j$, $j'$ dengan $\tau_{jj'} = \tau_{j'j} = 0$ dan $s_j = s_{j'} = 0$ (dua titik di lokasi yang sama, atau potongan selokasi dari aturan pemecahan lain), lalu siklus $j \to j' \to j$ di samping rute yang sah pada trip yang sama. G1–G4 terpenuhi, dan jumlah baris waktu di siklus memberi $0 \ge s_j + s_{j'} = 0$, yang lolos: dua node "terlayani" tanpa pernah dikunjungi. Jumlah baris G5 memberi $0 \ge q_j + q_{j'} \ge 2$, mustahil tanpa syarat. Ini sejalan dengan C3.
+
+**Urutan trip G8 dibuat bersyarat.** Tanpa suku Big-M, kendaraan yang pulang pada $l_0$ memaksa slot kosong berikutnya "berangkat" pada $l_0 + \lambda > l_0$, melanggar G7, sehingga solusi yang sah tertolak.
+
+### 4.7 Big-M
+
+Semua baris memakai resep §2.5: saat arc atau trip tidak dipakai, $M$ harus $\ge$ ruas kanan terbesar yang diizinkan batas G5 dan G7.
+
+| Baris          | Saat tidak aktif, $M \ge$           | Terbesar saat                     | $M$                                                              |
+| -------------- | ----------------------------------- | --------------------------------- | ---------------------------------------------------------------- |
+| G5 muatan      | $u_i + q_j - u_j$                   | $u_i = Q$, $u_j = q_j$            | $Q$                                                              |
+| G6 berangkat   | $S^{kr} + \tau_{0j} - T_j$          | $S^{kr} = l_0$, $T_j = a'_j$      | $M^S_j = l_0 + \tau_{0j} - a'_j$                                 |
+| G6 antar-node  | $T_i + s_i + \tau_{ij} - T_j$       | $T_i = d'_i$, $T_j = a'_j$        | $M_{ij} = \max\lbrace 0,\ d'_i + s_i + \tau_{ij} - a'_j \rbrace$ |
+| G6 pulang      | $T_i + s_i + \tau_{i,n+1} - E^{kr}$ | $T_i = d'_i$, $E^{kr} = e_0$      | $M^E_i = d'_i + s_i + \tau_{i,n+1} - e_0$                        |
+| G8 urutan trip | $E^{kr} + \lambda - S^{k,r+1}$      | $E^{kr} = l_0$, $S^{k,r+1} = e_0$ | $M^{\lambda} = l_0 - e_0 + \lambda$                              |
+
+Menurut definisi $d'_i$, berlaku $d'_i + s_i + \tau_{i,n+1} \le l_0$, jadi $M^E_i \le l_0 - e_0$.
+
+### 4.8 Hubungan dengan Model A dan batas bawah
+
+- **$\rho = 1$ sama dengan Model A.** G8 dan bagian pertama G9 hilang, dan $X_{ij}$ berperan sebagai $x_{ij}$. Pada H5 dengan $\rho = 1$, enumerasi Model B memberi 9 solusi layak dengan optimum 32, sama dengan §3.5.
+- **Menambah $\rho$ tidak pernah memperburuk optimum**, karena setiap solusi dengan $\rho$ trip juga solusi dengan $\rho + 1$ trip. Pada H5 dengan $\rho = 2$ dan $\lambda = 10$, solusi layak naik menjadi 32 tetapi optimum tetap 32.
+- **Batas bawah kini dalam satuan trip.** Instans tidak layak bila $\lceil \sum_j q_j / Q \rceil > \lvert K \rvert \cdot \rho$. Kelompok node yang saling tak serute (E3) kini membatasi jumlah **trip**, bukan jumlah kendaraan.
+
+### 4.9 Pemeriksaan solusi Model B
+
+Dipakai validator MO-3.2 dan evaluator core:
+
+1. **Struktur:** setiap node tepat di satu trip; kendaraan terpakai $\le \lvert K \rvert$; trip per kendaraan $\le \rho$.
+2. **Per trip:** muatan $\le Q$; hitung $\Delta_j$ dan $T^{\ast}_j$; gagal bila ada $T^{\ast}_j > d'_j$; simpan $(\Delta,\ E^{\ast},\ S^{max})$.
+3. **Per kendaraan:** rantai §4.4. Kegagalan $S > S^{max}$ di trip $r \ge 2$ adalah pelanggaran jendela waktu yang **disebabkan trip sebelumnya**; trip itu sendiri layak bila berangkat pada $e_0$.
+
+### 4.10 Contoh: instans H5-S
+
+H5 dengan demand titik 2 dinaikkan dari 40 menjadi **120**. Aturan "penuh dulu" memecahnya menjadi node 2 ($q = 100$) dan node 6 ($q = 20$), selokasi. Data lain tetap: $\lvert K \rvert = 2$, $\rho = 2$, $\lambda = 10$, $Q = 100$, $[e_0, l_0] = [480, 680]$, $\tau_{ij} = 5 c_{ij}$.
+
+| $c_{ij}$ |   0 |   1 |   2 |   3 |   4 |   5 |   6 |
+| -------- | --: | --: | --: | --: | --: | --: | --: |
+| **0**    |   – |   3 |   6 |   5 |   4 |   4 |   6 |
+| **1**    |   3 |   – |   3 |   6 |   5 |   5 |   3 |
+| **2**    |   6 |   3 |   – |   5 |   8 |   8 |   0 |
+| **3**    |   5 |   6 |   5 |   – |   5 |   9 |   5 |
+| **4**    |   4 |   5 |   8 |   5 |   – |   8 |   8 |
+| **5**    |   4 |   5 |   8 |   9 |   8 |   – |   8 |
+| **6**    |   6 |   3 |   0 |   5 |   8 |   8 |   – |
+
+| Node | $q_j$ | $s_j$ | $a_j$ | $d_j$ | $e_0 + \tau_{0j}$ | $l_0 - s_j - \tau_{j0}$ | $a'_j$ | $d'_j$ |
+| ---- | ----: | ----: | ----: | ----: | ----------------: | ----------------------: | -----: | -----: |
+| 1    |    25 |    10 |   560 |   610 |               495 |                     655 |    560 |    610 |
+| 2    |   100 |    15 |   510 |   570 |               510 |                     635 |    510 |    570 |
+| 3    |    20 |    10 |   600 |   650 |               505 |                     645 |    600 |    645 |
+| 4    |    35 |     5 |   480 |   530 |               500 |                     655 |    500 |    530 |
+| 5    |    15 |    10 |   580 |   610 |               500 |                     650 |    580 |    610 |
+| 6    |    20 |    10 |   510 |   570 |               510 |                     640 |    510 |    570 |
+
+- H5 tidak memakai rumus $s^0 + \eta q_j$, jadi $s_2 = 15$ dan $s_6 = 10$ bersifat ilustratif.
+- Total demand 215, jadi paling sedikit $\lceil 2{,}15 \rceil = 3$ trip, dari $\lvert K \rvert \cdot \rho = 4$ slot. Dengan $\rho = 1$ instans ini tidak layak (3 trip $> 2$).
+
+**Uji arc.** Isi sel adalah $a'_i + s_i + \tau_{ij}$. **W** = mustahil karena waktu ($> d'_j$), **Q** = mustahil karena kapasitas ($q_i + q_j > 100$).
+
+| Pangkal $i$ ($a'_i + s_i$) |     $j=1$ |        $j=2$ |     $j=3$ |        $j=4$ |     $j=5$ |     $j=6$ |
+| -------------------------- | --------: | -----------: | --------: | -----------: | --------: | --------: |
+| $d'_j$                     |       610 |          570 |       645 |          530 |       610 |       570 |
+| 1 ($560 + 10$)             |         – | 585 **W, Q** |       600 |    595 **W** |       595 | 585 **W** |
+| 2 ($510 + 15$)             | 540 **Q** |            – | 550 **Q** | 565 **W, Q** | 565 **Q** | 525 **Q** |
+| 3 ($600 + 10$)             | 640 **W** | 635 **W, Q** |         – |    635 **W** | 655 **W** | 635 **W** |
+| 4 ($500 + 5$)              |       530 |    545 **Q** |       530 |            – |       545 |       545 |
+| 5 ($580 + 10$)             | 615 **W** | 630 **W, Q** |       635 |    630 **W** |         – | 630 **W** |
+| 6 ($510 + 10$)             |       535 |    520 **Q** |       545 |    560 **W** |       560 |         – |
+
+Dua puluh dari tiga puluh arc mustahil. Node 2 selalu sendirian (trip $(2)$), termasuk terhadap potongan selokasinya: arc $(2,6)$ dan $(6,2)$ mustahil walau $\tau = 0$. Node 4 selalu pertama, node 3 selalu terakhir, dan node 6 adalah node pertama atau tepat setelah node 4.
+
+**Ringkasan trip yang dipakai di bawah.**
+
+| Trip           | $\Delta$ | $E^{\ast}$ | $S^{max}$ | Biaya |
+| -------------- | -------: | ---------: | --------: | ----: |
+| $(2)$          |       75 |        555 |       540 |    12 |
+| $(3)$          |       60 |        635 |       620 |    10 |
+| $(5, 3)$       |      110 |        670 |       570 |    18 |
+| $(6, 1)$       |       80 |        585 |       540 |    12 |
+| $(4, 6, 1)$    |      115 |        595 |       505 |    18 |
+| $(4, 6, 1, 5)$ |      155 |        635 |       485 |    24 |
+
+Rincian trip $(4, 6, 1, 5)$, muatan $35 + 20 + 25 + 15 = 95$:
+
+| Node | $\Delta_j$           | $T^{\ast}_j$                      | $d'_j$ | $d'_j - \Delta_j$ |
+| ---- | -------------------- | --------------------------------- | -----: | ----------------: |
+| 4    | $20$                 | $500$                             |    530 |               510 |
+| 6    | $20 + 5 + 40 = 65$   | $\max(500 + 5 + 40,\ 510) = 545$  |    570 |               505 |
+| 1    | $65 + 10 + 15 = 90$  | $\max(545 + 10 + 15,\ 560) = 570$ |    610 |               520 |
+| 5    | $90 + 10 + 25 = 125$ | $\max(570 + 10 + 25,\ 580) = 605$ |    610 |               485 |
+
+$\Delta = 125 + 10 + 20 = 155$, $E^{\ast} = 605 + 10 + 20 = 635$, $S^{max} = 485$.
+
+**Solusi M1 (optimum, biaya 46).**
+
+| Kendaraan | Trip           | $S$              | $S^{max}$ | $E$                    |
+| --------- | -------------- | ---------------- | --------: | ---------------------- |
+| 1         | $(2)$          | 480              |       540 | $\max(555, 555) = 555$ |
+| 1         | $(3)$          | $555 + 10 = 565$ |       620 | $\max(625, 635) = 635$ |
+| 2         | $(4, 6, 1, 5)$ | 480              |       485 | $\max(635, 635) = 635$ |
+
+Biaya $12 + 10 + 24 = 46$.
+
+**Solusi M2 (biaya 48).**
+
+| Kendaraan | Trip        | $S$              | $S^{max}$ | $E$                    |
+| --------- | ----------- | ---------------- | --------: | ---------------------- |
+| 1         | $(2)$       | 480              |       540 | 555                    |
+| 1         | $(5, 3)$    | $555 + 10 = 565$ |       570 | $\max(675, 670) = 675$ |
+| 2         | $(4, 6, 1)$ | 480              |       505 | $\max(595, 595) = 595$ |
+
+Biaya $12 + 18 + 18 = 48$. Trip kedua kendaraan 1 hanya punya kelonggaran 5 menit, jadi M2 tetap layak sampai $\lambda = 15$ ($S = 570$, pulang tepat $l_0 = 680$) dan gagal pada $\lambda = 16$.
+
+**Hasil enumerasi** (semua pembagian, urutan dalam trip, penugasan dan urutan trip ke kendaraan):
+
+| $\lvert K \rvert$ | $\rho$ | $\lambda$ | Solusi layak | Optimum                       |
+| ----------------: | -----: | --------: | -----------: | ----------------------------- |
+|                 2 |      1 |         — |            0 | tidak layak (perlu 3 trip)    |
+|                 2 |      2 |        10 |            8 | 46 (M1 dan satu solusi lain)  |
+|                 2 |      2 |        20 |            4 | 46                            |
+|                 2 |      3 |        10 |           11 | 46                            |
+|                 3 |      1 |         — |           11 | 44: $(2)$, $(4,3)$, $(6,1,5)$ |
+|                 1 |  bebas |     bebas |            0 | tidak layak                   |
+
+Solusi optimum kedua adalah $(2)$ lalu $(5)$ pada kendaraan 1 dan $(4, 6, 1, 3)$ pada kendaraan 2. Multi-trip menghemat satu kendaraan dengan tambahan jarak 2 (46 dibanding 44).
+
+**V5, satu kendaraan tidak cukup berapa pun $\rho$ dan $\lambda \ge 0$.**
+
+1. Trip yang memuat node 4 punya $S^{max} \le d'_4 - \Delta_4 = 530 - 20 = 510$. Setiap trip lain pulang paling cepat pada $E^{\ast} \ge 550$ (trip $(6)$; trip lain lebih lambat). Jadi trip node 4 harus yang **pertama**.
+2. Trip $(2)$ punya $S^{max} = 540$, jadi ia trip kedua dan trip pertama harus pulang $\le 540 - \lambda \le 540$. Hanya trip $(4)$ yang memenuhi ($E^{\ast} = 505$, $\Delta = 45$).
+3. Trip $(2)$ berangkat $505 + \lambda$ dan pulang pada $\max(580 + \lambda,\ 555) \ge 580$.
+4. Node 6 kini baru bisa dilayani pada $\ge 580 + \tau_{06} = 610 > d'_6 = 570$. Tidak layak. ∎
+
+Pola yang sama dengan V4: node 2, 4, dan 6 sama-sama berdeadline awal, dan trip yang melayaninya terlalu panjang untuk dirantai satu kendaraan.
+
+### 4.11 Keputusan MO-1.4
+
+| #   | Keputusan                                                                                                                                                                                          |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| J1  | Pemecahan demand "penuh dulu": $k = \lceil q/Q \rceil$, $k-1$ potongan berukuran $Q$ dan sisa $r = q - (k-1)Q$; potongan mewarisi jendela, $m$, $\delta$; $s_j$ dihitung ulang per potongan (§4.1) |
+| J2  | Trip pertama tidak dikenai $\lambda$; $\lambda$ hanya di antara dua trip berurutan. Model B dengan $\rho = 1$ sama dengan Model A (§4.4, §4.8)                                                     |
+| J3  | Formulasi G0–G10: v3.1 §8.6 ditambah propagasi muatan G5 (eliminasi subtour tetap bersandar pada kapasitas, C3) dan urutan trip bersyarat G8 (§4.5, §4.6)                                          |
+| J4  | Big-M per baris dengan nilai terkecil yang sah: $Q$, $M^S_j$, $M_{ij}$, $M^E_i$, $M^{\lambda}$ (§4.7)                                                                                              |
+| J5  | Satu trip diringkas $(\Delta, E^{\ast}, S^{max})$ dengan $T_j(S) = \max(S + \Delta_j, T^{\ast}_j)$; kendaraan diperiksa dengan rantai berangkat secepat mungkin (§4.3, §4.4, §4.9)                 |
+| J6  | Batas bawah dalam satuan trip: $\lceil \sum q/Q \rceil \le \lvert K \rvert \rho$; kelompok saling tak serute membatasi jumlah trip (§4.8)                                                          |
+| J7  | H5-S, ringkasan trip, M1, M2, tabel enumerasi, dan V5 menjadi fixture MO-2.3 (§4.10)                                                                                                               |
+| J8  | Notasi $\Delta_j$, $\Delta$ untuk durasi tanpa menunggu (bukan $D$, yang berarti ukuran batch di v3.1)                                                                                             |
+
+Yang belum dicakup Model B: urutan trip terbaik per kendaraan sebagai masalah optimasi (MO-11.2), serta produksi batch, release date, dan holding (Model C dan D, MO-1.5).
+
+Pertanyaan terbuka untuk MO-3.2: apakah kegagalan $S > S^{max}$ di trip $r \ge 2$ dilaporkan sebagai jenis pelanggaran tersendiri ("terlambat karena trip sebelumnya") atau sebagai pelanggaran jendela waktu biasa di node yang gagal.
