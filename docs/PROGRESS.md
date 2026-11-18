@@ -136,3 +136,12 @@ Log handoff antar-thread. Satu entri per sub-milestone, ditambahkan saat thread 
 - Pertanyaan terbuka: "pulang setelah `l_0`" dilaporkan terpisah dari pelanggaran jendela? (MO-3.2); pembedaan input tidak valid vs instans tidak layak perlu diulang (MO-2.1); `max(A_j, a'_j)` di node tengah sempat terlewat, jadi tabel selalu memakai kolom `a'_j`.
 - Berikutnya: MO-1.4 Model B multi-trip + pemecahan demand.
 - Jam: estimasi 4 / aktual ~2
+
+## ✅ [MO-1.4] Model B multi-trip + pemecahan demand — 2026-11-18
+
+- Selesai: `model.md` §4. Pemecahan demand "penuh dulu" (`k = ⌈q/Q⌉`, bukti `1 ≤ r ≤ Q`, contoh hilangnya optimalitas dibanding split delivery). Trip sebagai fungsi jam berangkat: `T_j(S) = max(S + Δ_j, T*_j)`, ringkasan `(Δ, E*, S^max)`, rantai trip berangkat secepat mungkin. Formulasi G0–G10, Big-M per baris. Instans H5-S: 8 solusi layak, optimum 46; satu kendaraan tidak layak (V5). Diverifikasi enumerasi.
+- Keputusan: J1–J8: trip pertama tanpa `λ` (`ρ = 1` ≡ Model A); dua perbaikan v3.1 §8.6 (propagasi muatan G5, urutan trip bersyarat G8); batas bawah dalam satuan trip; notasi `Δ` (bukan `D`). `PROJECT_CONTEXT` v1.16.
+- File yang berubah: `docs/mathematics/mealops/model.md`, `docs/PROGRESS.md`, `PROJECT_CONTEXT.md`.
+- Pertanyaan terbuka: pelanggaran "terlambat karena trip sebelumnya" dilaporkan terpisah? (MO-3.2); urutan trip terbaik per kendaraan (MO-11.2); waktu layan node yang ditinggalkan masih sempat tertukar di `E*`.
+- Berikutnya: MO-1.5 Model C/D, lower bound holding.
+- Jam: estimasi 6 / aktual ~4
