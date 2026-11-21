@@ -145,3 +145,12 @@ Log handoff antar-thread. Satu entri per sub-milestone, ditambahkan saat thread 
 - Pertanyaan terbuka: pelanggaran "terlambat karena trip sebelumnya" dilaporkan terpisah? (MO-3.2); urutan trip terbaik per kendaraan (MO-11.2); waktu layan node yang ditinggalkan masih sempat tertukar di `E*`.
 - Berikutnya: MO-1.5 Model C/D, lower bound holding.
 - Jam: estimasi 6 / aktual ~4
+
+## ✅ [MO-1.5] Model C/D, lower bound holding — 2026-11-21
+
+- Selesai: `model.md` §5–§7. Model C (P1–P8, durasi bulat `θ`), Model D (release I1–I2, holding I3–I4, objektif leksikografis). Lower bound holding: `ℓ_j`, jendela `F_j`, Helly 1D, greedy piercing → batch minimum `β*`. Jadwal paling lambat: kendala selisih, sifat lattice, lintasan mundur → holding minimum persis untuk rencana tetap. Instans H5-P: 13 rencana layak, optimum unik D1 (jarak 38, holding 12395); diverifikasi enumerasi. Latihan enam putaran.
+- Keputusan: K1–K9: pemecahan demand memakai `Q̄ = min(Q, D^max)`; trip boleh membawa beberapa batch; batas bawah batch = maks(`⌈Σq/D^max⌉`, `β*`). `PROJECT_CONTEXT` v1.17.
+- File yang berubah: `docs/mathematics/mealops/model.md`, `docs/PROGRESS.md`, `PROJECT_CONTEXT.md`.
+- Pertanyaan terbuka: urutan/pembagian batch terbaik (MO-12, MO-13.1); uji kapasitas lini masak (MO-13.2); label batch tertukar dan rantai trip lintas kendaraan saat hitung tangan (selalu tulis kolom batch dan kendaraan).
+- Berikutnya: MO-1.6 Review dan `docs/mathematics/mealops/`.
+- Jam: estimasi 8 / aktual ~7

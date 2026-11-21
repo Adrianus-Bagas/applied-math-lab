@@ -1,6 +1,6 @@
 # MealOps — Model Matematis
 
-> **Status:** §1 selesai (MO-1.1), §2 selesai (MO-1.2), §3 selesai (MO-1.3), §4 selesai (MO-1.4). §5 dan seterusnya ditambahkan di MO-1.5 dan MO-1.6.
+> **Status:** §1 selesai (MO-1.1), §2 selesai (MO-1.2), §3 selesai (MO-1.3), §4 selesai (MO-1.4), §5–§7 selesai (MO-1.5). Review menyeluruh di MO-1.6.
 > **Rujukan:** `PROJECT_CONTEXT` MealOps v3.1 §8. Glosarium §8.1 di sana adalah notasi kanonik; dokumen ini hanya menambah notasi yang belum ada dan menetapkan semantiknya.
 > **Catatan:** semua angka di contoh bersifat ilustratif. $H^{max}$ adalah parameter kebijakan, bukan standar keamanan pangan.
 
@@ -30,7 +30,7 @@ Aturan:
 
 1. **Titik nol** adalah 00:00 hari operasi. Contoh: 07:30 ditulis $7 \cdot 60 + 30 = 450$.
 2. **Satu hari operasi:** semua waktu berada di $[0, 1440)$. Operasi yang melewati tengah malam berada di luar cakupan MVP.
-3. **Pembulatan ke atas, sekali, saat instans dibuat.** Durasi turunan yang bisa pecahan, misalnya $s_j = s^0 + \eta q_j$, disimpan sebagai $\lceil s_j \rceil$. Contoh: $s^0 = 5$, $\eta = 0{,}02$, $q_j = 180$ memberi $8{,}6$, disimpan $9$. Validator dan core hanya melihat bilangan bulat.
+3. **Pembulatan ke atas, sekali, saat instans dibuat.** Durasi turunan yang bisa pecahan, misalnya $s_j = s^0 + \eta q_j$, disimpan sebagai $\lceil s_j \rceil$. Contoh: $s^0 = 5$, $\eta = 0{,}02$, $q_j = 180$ memberi $8{,}6$, disimpan $9$. Validator dan core hanya melihat bilangan bulat. Durasi batch bergantung pada keputusan $D_b$, jadi dibulatkan saat dihitung (§5.3).
 
 Alasan bilangan bulat: uji kelayakan berbentuk perbandingan ($T_j \le d_j$). Dengan bilangan bulat, validator Python dan evaluator Rust selalu memberi jawaban yang sama tanpa toleransi. Pembulatan ke atas tidak pernah membuat rencana tampak lebih longgar daripada kenyataannya.
 
@@ -90,7 +90,7 @@ Sukunya berturut-turut: tunggu packing, packing, muat dan tunggu berangkat ($\ge
 - Batas bawah, dari $h_j \le H^{max}$: $f_b \ge \max_j m_{\sigma(j)} - H^{max}$, maksimum atas node di batch.
 - Batas atas, dari rute: bila trip paling lambat boleh berangkat pada $S$, maka $f_b \le S - \lambda - (\text{durasi packing})$, karena $S \ge p_b + \lambda$ dan $p_b \ge f_b + (\text{durasi packing})$.
 
-Bila batas bawah melebihi batas atas, instans tidak layak. Bentuk umumnya (lower bound holding) diturunkan di MO-1.5.
+Bila batas bawah melebihi batas atas, instans tidak layak. Bentuk umumnya (lower bound holding) diturunkan di §7.
 
 **Contoh.** Lanjutan rute di atas, dengan $\delta = 15$ (jadi $m_1 = 615$, $m_2 = 630$), durasi packing 30, $\lambda = 10$, $H^{max} = 120$, satu batch untuk kedua node, packing langsung, berangkat secepat mungkin.
 
@@ -132,7 +132,8 @@ Ditetapkan di MO-1.1:
 Catatan:
 
 - **B5.** Bongkar selesai pada $T_j + s_j$, yang bisa melewati $d_j$. Dengan $\delta_{\sigma(j)} \ge s_j$, bongkar selalu selesai sebelum $m_{\sigma(j)}$, karena $T_j + s_j \le d_j + \delta_{\sigma(j)} = m_{\sigma(j)}$.
-- **B6.** Dipakai oleh lower bound (MO-1.5, MO-6.3). Pembulatan ke atas mempertahankannya, karena $\lceil x + y \rceil \le \lceil x \rceil + \lceil y \rceil$.
+- **B6.** Dipakai oleh lower bound (§7, MO-6.3). Pembulatan ke atas mempertahankannya, karena $\lceil x + y \rceil \le \lceil x \rceil + \lceil y \rceil$.
+- **A6.** Sejak MO-1.5 batas pemecahan adalah $\bar Q = \min(Q, D^{max})$ (K1, §5.6).
 
 ### 1.7 Pemeriksaan instans
 
@@ -143,7 +144,8 @@ Instans ditolak saat validasi input bila salah satu syarat berikut dilanggar (di
 3. $\delta_{\sigma(j)} \ge s_j$ untuk setiap node (B5).
 4. $\tau_{ii} = 0$, dan $\tau_{jj'} = 0$ bila $\sigma(j) = \sigma(j')$.
 5. $\tau_{ij} \le \tau_{ik} + \tau_{kj}$ untuk semua $i, j, k$ (B6).
-6. $q_j$ bilangan bulat dengan $1 \le q_j \le Q$ untuk setiap node setelah pemecahan demand. Batas bawah ditetapkan di MO-1.2 (C1, §2.10).
+6. $q_j$ bilangan bulat dengan $1 \le q_j \le \bar Q$ untuk setiap node setelah pemecahan demand, dengan $\bar Q = \min(Q, D^{max})$. Batas bawah ditetapkan di MO-1.2 (C1, §2.10), batas atas di MO-1.5 (K1, §5.6).
+7. Parameter produksi: $e_{dapur}$, $H^{max}$, dan $\lambda$ bilangan bulat tak negatif; $\phi^c_0, \phi^c_1, \phi^p_0, \phi^p_1 \ge 0$; $D^{max} \ge 1$ dan $\lvert B \rvert \ge 1$ bilangan bulat (MO-1.5).
 
 ## 2. Model A — CVRPTW (single-trip)
 
@@ -392,7 +394,7 @@ Kembali ke dapur pada $530 + 10 + 25 = 565$ dan $540 + 10 + 30 = 580$. Biaya $(4
 | C5  | Objektif Model A adalah total jarak; jumlah kendaraan hanya dibatasi $\lvert K \rvert$, belum menjadi objektif |
 | C6  | Kelayakan satu rute diperiksa dengan satu lintasan maju jadwal tercepat (§2.7), setara dengan F4–F7            |
 
-Yang belum dicakup Model A: lebih dari satu trip per kendaraan dan waktu muat $\lambda$ (Model B, MO-1.4), produksi batch (Model C), serta release date dan holding (Model D, MO-1.5).
+Yang belum dicakup Model A: lebih dari satu trip per kendaraan dan waktu muat $\lambda$ (Model B, §4), produksi batch (Model C, §5), serta release date dan holding (Model D, §6).
 
 ## 3. Contoh hitung tangan Model A: layak dan tidak layak
 
@@ -579,11 +581,13 @@ Pertanyaan terbuka untuk MO-3.2: apakah "pulang setelah $l_0$" dilaporkan sebaga
 
 ## 4. Model B — multi-trip dan pemecahan demand
 
-Model B memperluas Model A ke dua arah. Pertama, titik layanan yang demandnya melebihi $Q$ dipecah menjadi beberapa node (§4.1). Kedua, setiap kendaraan boleh menjalani sampai $\rho$ trip dalam sehari, dengan waktu muat $\lambda$ sebelum setiap trip berikutnya (§4.3–4.5). Produksi, release date, dan holding belum masuk (Model C dan D, MO-1.5).
+Model B memperluas Model A ke dua arah. Pertama, titik layanan yang demandnya melebihi $Q$ dipecah menjadi beberapa node (§4.1). Kedua, setiap kendaraan boleh menjalani sampai $\rho$ trip dalam sehari, dengan waktu muat $\lambda$ sebelum setiap trip berikutnya (§4.3–4.5). Produksi, release date, dan holding masuk di Model C dan D (§5, §6).
 
 Seperti Model A, formulasi di §4.5 adalah spesifikasi. Validator dan core memeriksa solusi lewat ringkasan trip (§4.3) dan rantai trip (§4.4).
 
 ### 4.1 Pemecahan demand
+
+> Sejak MO-1.5, $Q$ di bagian ini dibaca $\bar Q = \min(Q, D^{max})$ (K1, §5.6). Bila $D^{max} \ge Q$, tidak ada yang berubah.
 
 Notasi: $q$ = demand satu titik layanan, $k$ = jumlah potongan, $r$ = ukuran potongan terakhir.
 
@@ -701,7 +705,7 @@ $\Delta = 95 + 10 + 15 = 120$, $E^{\ast} = 575 + 10 + 15 = 600$, $S^{max} = 505$
 
 $$S^{k1} \ge e_0, \qquad S^{k,r+1} \ge E^{kr} + \lambda$$
 
-Trip pertama tidak dikenai $\lambda$: muatnya dianggap selesai sebelum $e_0$ (diatur Model D lewat release date). Dengan begitu Model B dengan $\rho = 1$ persis Model A.
+Trip pertama tidak dikenai $\lambda$: muatnya dianggap selesai sebelum $e_0$ (diatur Model D lewat release date, §6.1). Dengan begitu Model B dengan $\rho = 1$ persis Model A.
 
 **Berangkat secepat mungkin tidak pernah merugikan.** Menunda trip $r$ tidak pernah memajukan $E^{kr}$ (monoton, §4.3), jadi tidak pernah memajukan $S^{k,r+1}$ yang paling awal, sehingga syarat $S \le S^{max}$ di trip-trip berikutnya hanya bisa makin sulit. Bila suatu jadwal layak, jadwal "secepat mungkin" juga layak.
 
@@ -933,6 +937,568 @@ Pola yang sama dengan V4: node 2, 4, dan 6 sama-sama berdeadline awal, dan trip 
 | J7  | H5-S, ringkasan trip, M1, M2, tabel enumerasi, dan V5 menjadi fixture MO-2.3 (§4.10)                                                                                                               |
 | J8  | Notasi $\Delta_j$, $\Delta$ untuk durasi tanpa menunggu (bukan $D$, yang berarti ukuran batch di v3.1)                                                                                             |
 
-Yang belum dicakup Model B: urutan trip terbaik per kendaraan sebagai masalah optimasi (MO-11.2), serta produksi batch, release date, dan holding (Model C dan D, MO-1.5).
+Yang belum dicakup Model B: urutan trip terbaik per kendaraan sebagai masalah optimasi (MO-11.2), serta produksi batch, release date, dan holding (Model C dan D, §5 dan §6).
 
 Pertanyaan terbuka untuk MO-3.2: apakah kegagalan $S > S^{max}$ di trip $r \ge 2$ dilaporkan sebagai jenis pelanggaran tersendiri ("terlambat karena trip sebelumnya") atau sebagai pelanggaran jendela waktu biasa di node yang gagal.
+
+## 5. Model C — produksi batch
+
+Model C menambahkan dapur: makanan dimasak dalam beberapa **batch** di satu lini masak, lalu dipacking di satu lini packing (A5). Model ini belum terhubung ke trip; penghubungnya ada di Model D (§6).
+
+```text
+lini masak:    γ_b ──── masak θᶜ(D_b) ────> f_b
+lini packing:                        f_b ··tunggu··> π_b ── packing θᵖ(D_b) ──> p_b
+```
+
+### 5.1 Notasi tambahan
+
+| Notasi                    | Arti                                                                      | Satuan |
+| ------------------------- | ------------------------------------------------------------------------- | ------ |
+| $\theta^c(D)$             | Durasi masak batch berukuran $D$: $\lceil \phi^c_0 + \phi^c_1 D \rceil$   | menit  |
+| $\theta^p(D)$             | Durasi packing batch berukuran $D$: $\lceil \phi^p_0 + \phi^p_1 D \rceil$ | menit  |
+| $\theta^c_b,\ \theta^p_b$ | Singkatan $\theta^c(D_b)$, $\theta^p(D_b)$                                | menit  |
+| $\lvert B \rvert$         | Jumlah slot batch per hari (parameter, seperti $\rho$ untuk trip)         | —      |
+| $b(j)$                    | Batch tempat node $j$ dimasak                                             | —      |
+| $\bar Q$                  | Batas ukuran node setelah pemecahan demand: $\min(Q, D^{max})$ (§5.6)     | porsi  |
+
+Untuk batch kosong, $\theta^c(0) = \theta^p(0) = 0$. Huruf $\theta$ dipilih karena belum dipakai di v3.1.
+
+Notasi v3.1 yang dipakai di bagian ini: $B$, $v_{jb}$, $o_b$, $D_b$, $D^{max}$, $\gamma_b$, $f_b$, $\pi_b$, $p_b$, $e_{dapur}$, $\phi^c_0$, $\phi^c_1$, $\phi^p_0$, $\phi^p_1$.
+
+### 5.2 Formulasi
+
+**(P1) Setiap node dimasak di tepat satu batch.** Porsi satu node tidak dipecah ke dua batch.
+
+$$\sum_{b \in B} v_{jb} = 1 \qquad \forall j \in N$$
+
+**(P2) Ukuran batch** adalah jumlah demand node yang masuk ke batch itu.
+
+$$D_b = \sum_{j \in N} q_j\, v_{jb} \qquad \forall b$$
+
+**(P3) Kapasitas batch.** Batch yang tidak dipakai harus kosong.
+
+$$D_b \le D^{max}\, o_b \qquad \forall b$$
+
+**(P4) Durasi masak.**
+
+$$f_b \ge \gamma_b + \phi^c_0\, o_b + \phi^c_1\, D_b \qquad \forall b$$
+
+**(P5) Durasi packing.**
+
+$$p_b \ge \pi_b + \phi^p_0\, o_b + \phi^p_1\, D_b \qquad \forall b$$
+
+**(P6) Packing baru bisa mulai setelah seluruh batch matang** (B4).
+
+$$\pi_b \ge f_b \qquad \forall b$$
+
+**(P7) Setiap lini mengerjakan satu batch pada satu waktu, sesuai urutan indeks.**
+
+$$\gamma_{b+1} \ge f_b, \qquad \pi_{b+1} \ge p_b \qquad \forall b < \lvert B \rvert$$
+
+**(P8) Jam buka dapur dan batch dipakai berurutan.**
+
+$$\gamma_1 \ge e_{dapur}, \qquad o_{b+1} \le o_b$$
+
+Domain: $v_{jb},\ o_b \in \lbrace 0, 1 \rbrace$; semua jam bilangan bulat (B1).
+
+### 5.3 Durasi bulat: "≥" menggantikan "="
+
+v3.1 §8.7 menulis $f_b = \gamma_b + \phi^c_0 o_b + \phi^c_1 D_b$. Bentuk ini bertabrakan dengan B1: $\phi^c_0 = 30$, $\phi^c_1 = 0{,}02$, $D_b = 135$ memberi durasi $32{,}7$, sehingga $f_b$ menjadi pecahan. P4 dan P5 karena itu memakai "≥" (K2).
+
+1. **"≥" ditambah syarat bulat menghasilkan pembulatan ke atas.** Bila $\gamma_b$ bulat, maka $\lceil \gamma_b + x \rceil = \gamma_b + \lceil x \rceil$. Bilangan bulat terkecil yang memenuhi P4 adalah $f_b = \gamma_b + \theta^c_b$. Contoh: $\gamma_b = 400$ memberi $f_b \ge 432{,}7$, jadi $f_b = 433$.
+2. **Kelonggaran "≥" tidak menambah solusi.** Misalkan suatu solusi memakai $f_b > \gamma_b + \theta^c_b$. Geser mulainya ke $\gamma'_b = f_b - \theta^c_b$. Dari P4, $\gamma'_b \ge \gamma_b \ge f_{b-1}$, jadi P7 tetap terpenuhi; jam selesai $f_b$ sama, dan lini masak terpakai lebih singkat. "Memasak lebih lama" setara dengan "mulai memasak lebih telat". Contoh: $f_b = 440$ dengan $\gamma_b = 400$ setara dengan $\gamma'_b = 440 - 33 = 407$. Argumen yang sama berlaku untuk P5.
+
+Ini pola yang sama dengan §2.7: "≥" boleh dipakai selama kelonggarannya tidak mengubah himpunan solusi yang layak.
+
+### 5.4 Yang tersirat dari formulasi
+
+**Node tidak bisa masuk batch yang tidak dipakai.** Baris $v_{jb} \le o_b$ tidak perlu ditulis. Andaikan $o_b = 0$ tetapi $v_{jb} = 1$ untuk suatu $j$:
+
+1. Dari P2, semua suku tidak negatif, jadi $D_b \ge q_j v_{jb} = q_j \ge 1$ (C1).
+2. Dari P3 dengan $o_b = 0$: $D_b \le 0$.
+3. Langkah 1 dan 2 memberi $1 \le D_b \le 0$, mustahil. ∎
+
+Lagi-lagi $q_j \ge 1$ yang menutup celahnya, seperti eliminasi subtour di §2.6.
+
+**Urutan indeks.** A5 menetapkan bahwa kedua lini memproses batch dalam urutan yang sama, yaitu urutan indeks. Karena isi batch adalah keputusan ($v_{jb}$), urutan masak tetap bebas dipilih lewat cara menomori batch.
+
+### 5.5 Jadwal tercepat
+
+Bila isi dan urutan batch sudah ditentukan, jadwal paling cepat dihitung dengan satu lintasan maju:
+
+1. $\gamma_1 = e_{dapur}$, lalu $\gamma_{b+1} = f_b$.
+2. $f_b = \gamma_b + \theta^c_b$.
+3. $\pi_b = \max(f_b,\ p_{b-1})$: packing menunggu batchnya matang **dan** lini packing kosong. Untuk batch pertama, $\pi_1 = f_1$.
+4. $p_b = \pi_b + \theta^p_b$.
+
+**Contoh.** Demand H5, $q = (25, 40, 20, 35, 15)$, total 135. Data produksi ilustratif: $e_{dapur} = 300$, $D^{max} = 100$, $\phi^c_0 = 30$, $\phi^c_1 = 0{,}2$, $\phi^p_0 = 10$, $\phi^p_1 = 0{,}1$. Dibutuhkan paling sedikit $\lceil 135/100 \rceil = 2$ batch.
+
+| Urutan | Batch | Node    | $D_b$ | $\theta^c$ | $\theta^p$ | $\gamma_b$ | $f_b$ | $\pi_b$                | $p_b$ |
+| ------ | ----- | ------- | ----: | ---------: | ---------: | ---------: | ----: | ---------------------- | ----: |
+| I      | 1     | 2, 4    |    75 |         45 |         18 |        300 |   345 | 345                    |   363 |
+| I      | 2     | 1, 3, 5 |    60 |         42 |         16 |        345 |   387 | $\max(387, 363) = 387$ |   403 |
+| II     | 1     | 1, 3, 5 |    60 |         42 |         16 |        300 |   342 | 342                    |   358 |
+| II     | 2     | 2, 4    |    75 |         45 |         18 |        342 |   387 | $\max(387, 358) = 387$ |   405 |
+
+- **$f$ batch terakhir tidak bergantung pada urutan.** Lini masak tidak pernah menunggu, jadi $f_{\text{akhir}} = e_{dapur} + \sum_b \theta^c_b = 300 + 87 = 387$.
+- **$p$ batch terakhir bergantung pada urutan.** Packing batch terakhir menunggu masak, jadi $p_{\text{akhir}} = 387 + \theta^p(\text{batch terakhir})$: 403 di urutan I, 405 di urutan II. Penjadwalan dua mesin ini (_flow shop_) dibahas di MO-12.
+- Lini packing menganggur 363–387 (urutan I) dan 358–387 (urutan II).
+
+**Jadwal tercepat bukan jadwal terbaik untuk dapur.** Di rute, berangkat secepat mungkin tidak pernah merugikan (§4.4). Di dapur kebalikannya: holding mendorong masak **selambat mungkin**, selama makanan masih siap sebelum trip berangkat (§7.7).
+
+### 5.6 Pemecahan demand dan ukuran batch (K1)
+
+P1 melarang porsi satu node dipecah ke dua batch, sehingga node dengan $q_j > D^{max}$ tidak muat di batch mana pun. Contoh: $Q = 100$, $D^{max} = 80$, dan potongan penuh $q_j = 100$ dari aturan §4.1.
+
+Kasus seperti ini adalah **input tidak valid**, sama seperti $q_j > Q$ di §3.8: soalnya sendiri salah karena pemecahan demand belum cocok dengan batasan dapur. Pilihan yang diambil:
+
+| Opsi            | Aturan                                                                                                  | Catatan                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| A               | §1.7: $Q \le D^{max}$                                                                                   | Paling sederhana, tetapi menolak dapur dengan batch lebih kecil dari mobil |
+| **B (dipilih)** | Pemecahan "penuh dulu" memakai $\bar Q = \min(Q, D^{max})$; §1.7 nomor 6 menjadi $1 \le q_j \le \bar Q$ | Umum; bila $D^{max} \ge Q$ hasilnya sama persis dengan J1                  |
+
+Bukti $1 \le r \le Q$ di §4.1 tetap berlaku dengan $Q$ diganti $\bar Q$. Dengan opsi B, setiap node muat di batch mana pun dan di trip mana pun.
+
+## 6. Model D — model terintegrasi
+
+Model D = Model B (G1–G10) + Model C (P1–P8) + baris penghubung I1–I4, dengan objektif di §6.4. Inilah model akhir MVP (v3.1 §8.8).
+
+### 6.1 Release date (I1)
+
+Trip tidak boleh berangkat sebelum semua makanan yang dibawanya selesai dipacking dan dimuat:
+
+$$\text{(I1)} \qquad S^{kr} \ge p_b + \lambda - M^R \left( 2 - v_{jb} - y^{kr}_j \right) \qquad \forall j, b, k, r$$
+
+**Mengapa "$2 - v - y$".** Baris ini harus aktif hanya bila node $j$ dimasak di batch $b$ **dan** dibawa trip $(k,r)$.
+
+| $v_{jb}$ | $y^{kr}_j$ | $2 - v - y$ | Baris                             |
+| -------: | ---------: | ----------: | --------------------------------- |
+|        1 |          1 |           0 | aktif: $S^{kr} \ge p_b + \lambda$ |
+|        1 |          0 |           1 | diredam $M^R$                     |
+|        0 |          1 |           1 | diredam $M^R$                     |
+|        0 |          0 |           2 | diredam $2M^R$                    |
+
+Bentuk yang paling langsung, $M(1 - v_{jb}\, y^{kr}_j)$, memuat perkalian dua variabel sehingga tidak linear. $2 - v - y$ bernilai $0$ tepat saat keduanya $1$, dan $\ge 1$ di semua kasus lain.
+
+**Satu trip boleh membawa porsi dari beberapa batch** (K3). I1 berlaku untuk setiap node di trip, jadi trip menunggu batch yang paling akhir:
+
+$$S^{kr} \ge \max_{b \text{ di trip } (k,r)} p_b + \lambda$$
+
+**Hanya satu $\lambda$ per trip.** Digabung dengan G8:
+
+$$S^{k,r+1} \ge \max \left( E^{kr},\ \max_b p_b \right) + \lambda, \qquad S^{k1} \ge \max \left( e_0,\ \max_b p_b + \lambda \right)$$
+
+Muat dimulai saat mobil sudah kembali **dan** makanan sudah siap, lalu berlangsung $\lambda$ menit. Ini menuntaskan J2: $\lambda$ trip pertama masuk lewat I1.
+
+### 6.2 Batas atas packing dan Big-M (I2)
+
+$$\text{(I2)} \qquad p_b \le l_0 - \lambda \qquad \forall b$$
+
+I2 tidak membuang solusi layak:
+
+- **Batch yang dipakai** dibawa minimal satu trip yang berangkat $S \le l_0$ (G7), jadi dari I1 $p_b \le S - \lambda \le l_0 - \lambda$.
+- **Batch yang tidak dipakai** ada di urutan akhir (P8) dan berdurasi nol; semua jamnya bisa disamakan dengan batch sebelumnya.
+
+Saat I1 diredam, $M^R \ge p_b + \lambda - S^{kr}$. Ruas kanan terbesar saat $p_b = l_0 - \lambda$ dan $S^{kr} = e_0$:
+
+$$M^R = l_0 - e_0$$
+
+**Contoh** (H5, §6.6): $M^R = 680 - 480 = 200$. Baris $j = 2$, $b = 2$, trip B diredam dua kali ($v_{22} = 0$, node 2 tidak di trip B): ruas kanan $403 + 10 - 400 = 13$, jauh di bawah $e_0$.
+
+### 6.3 Holding (I3, I4)
+
+Holding node $j$ adalah $m_{\sigma(j)} - f_{b(j)}$, dan $b(j)$ adalah keputusan. Ditulis langsung, $h_j = \sum_b v_{jb} (m_{\sigma(j)} - f_b)$ memuat perkalian $v_{jb} f_b$. Triknya: satu baris per batch, dan hanya baris batch yang dipilih yang aktif.
+
+$$\text{(I3)} \qquad h_j \ge m_{\sigma(j)} - f_b - M^h_j (1 - v_{jb}) \qquad \forall j, b$$
+
+$$\text{(I4)} \qquad 0 \le h_j \le H^{max} \qquad \forall j$$
+
+**Big-M.** Saat diredam, I3 tidak boleh lebih ketat dari $h_j \ge 0$, jadi $M^h_j \ge m_{\sigma(j)} - f_b$. Terbesar saat $f_b$ terkecil, dan $f_b \ge \gamma_1 \ge e_{dapur}$ (P4, P7, P8):
+
+$$M^h_j = m_{\sigma(j)} - e_{dapur}$$
+
+**Arti I3 + I4.** Baris aktif digabung dengan batas atas memberi $f_b \ge m_{\sigma(j)} - H^{max}$ untuk setiap node di batch $b$. Bila ada beberapa node, yang berlaku adalah yang terbesar:
+
+$$f_b \ge \max_{j : b(j) = b} m_{\sigma(j)} - H^{max}$$
+
+**"≥" di I3 aman karena objektif.** $h_j$ boleh lebih besar dari holding sebenarnya, tetapi holding diminimalkan (§6.4), sehingga di optimum $h_j = m_{\sigma(j)} - f_{b(j)}$ tepat. Validator tidak bergantung pada argumen ini: ia menghitung $h_j$ langsung.
+
+### 6.4 Objektif leksikografis
+
+v3.1 §8.8 punya tiga tingkat: keterlambatan, jarak, holding. Jendela waktu kita keras (B3), jadi keterlambatan selalu $0$ dan tingkat pertama gugur (K4):
+
+$$\min \ \Big( \sum_{k,r} \sum_{(i,j)} c_{ij}\, x^{kr}_{ij},\ \ \sum_{j} q_j h_j \Big) \quad \text{secara leksikografis}$$
+
+Leksikografis berarti dibandingkan seperti urutan kamus: komponen kedua hanya dilihat bila komponen pertama seri.
+
+$$(46,\ 9000) \ <\ (46,\ 9500) \ <\ (48,\ 100)$$
+
+Holding tertimbang porsi ($q_j h_j$, satuan porsi·menit) karena node 100 porsi yang menunggu 60 menit lebih berat daripada node 10 porsi yang menunggu 60 menit. Holding di sini pemecah seri; batas kerasnya tetap I4.
+
+### 6.5 Ringkasan formulasi
+
+| Kelompok   | Baris  | Isi                                                                       |
+| ---------- | ------ | ------------------------------------------------------------------------- |
+| Objektif   | §6.4   | (jarak, $\sum q_j h_j$) leksikografis                                     |
+| Rute       | G1–G10 | Model B (§4.5)                                                            |
+| Dapur      | P1–P8  | Model C (§5.2)                                                            |
+| Penghubung | I1, I2 | Release date dan batas atas packing; $M^R = l_0 - e_0$                    |
+| Holding    | I3, I4 | $h_j \ge m_{\sigma(j)} - f_b$ untuk batch yang dipilih; $h_j \le H^{max}$ |
+
+### 6.6 Contoh: jadwal tercepat dengan rute S1
+
+Data H5 ditambah $\delta_j = 20$ (jadi $m = (630, 590, 670, 550, 630)$; B5 terpenuhi karena $s_j \le 15$), $\lambda = 10$, $H^{max} = 120$, data produksi §5.5. Rute S1 (§3.5): trip A $= (2, 1, 5)$ dan trip B $= (4, 3)$, masing-masing di kendaraan sendiri. Batch 1 $= \lbrace 2, 4 \rbrace$, batch 2 $= \lbrace 1, 3, 5 \rbrace$, jadwal tercepat urutan I.
+
+- **Release.** Kedua trip membawa porsi dari kedua batch: release $= \max(363, 403) + 10 = 413 \le e_0$, jadi keduanya berangkat 480.
+- **Holding.**
+
+| Node | Batch | $f_b$ | $h_j = m_j - f_b$ | $q_j h_j$ |
+| ---- | ----: | ----: | ----------------: | --------: |
+| 1    |     2 |   387 |               243 |      6075 |
+| 2    |     1 |   345 |               245 |      9800 |
+| 3    |     2 |   387 |               283 |      5660 |
+| 4    |     1 |   345 |               205 |      7175 |
+| 5    |     2 |   387 |               243 |      3645 |
+|      |       |       |         **Total** | **32355** |
+
+Kelima node melanggar $H^{max} = 120$. Dari I3 + I4, batch 1 harus matang $f_1 \ge \max(590, 550) - 120 = 470$ dan batch 2 $f_2 \ge \max(630, 670, 630) - 120 = 550$. §7.1 menunjukkan bahwa rencana ini tidak bisa diperbaiki dengan menggeser jadwal masak.
+
+## 7. Lower bound holding dan jadwal paling lambat
+
+### 7.1 Motivasi
+
+Lanjutan §6.6. Ringkasan trip S1:
+
+| Trip | Node | $\Delta_j$          | $d'_j - \Delta_j$ |
+| ---- | ---- | ------------------- | ----------------: |
+| A    | 2    | $30$                |               540 |
+| A    | 1    | $30 + 15 + 15 = 60$ |               550 |
+| A    | 5    | $60 + 10 + 25 = 95$ |               515 |
+| B    | 4    | $20$                |               510 |
+| B    | 3    | $20 + 5 + 25 = 50$  |               595 |
+
+Jadi $S^{max}_A = 515$ dan $S^{max}_B = 510$. Batch 2 punya node di kedua trip, sehingga batas atasnya dirangkai mundur dari trip yang lebih awal:
+
+1. $S_B \le 510$.
+2. Release (I1): $p_2 \le S_B - \lambda \le 500$.
+3. Packing (P5, P6): $f_2 \le p_2 - \theta^p(60) \le 484$.
+
+Padahal $f_2 \ge 550$. Rencana ini tidak layak berapa pun jadwal masaknya. Lebih kuat lagi: **rute S1 tidak layak untuk Model D pada $H^{max} = 120$ berapa pun pembagian batchnya.** Node 3 ada di trip B, sehingga batch berisi node 3 harus matang $\le 510 - 10 - \theta^p(20) = 488$, padahal I3 + I4 menuntut $\ge 670 - 120 = 550$. Optimum Model A tidak harus layak di Model D.
+
+Bagian ini menurunkan uji yang mendeteksi masalah seperti ini **sebelum** rute dan batch dipilih (§7.2–§7.6), lalu cara menghitung holding minimum persis setelah semuanya dipilih (§7.7).
+
+### 7.2 Holding minimum satu node, $\ell_j$
+
+Ambil node $j$ di batch $b$, dibawa trip yang berangkat pada $S$. Fakta dari model:
+
+| Langkah | Fakta                                             | Dari                                                     |
+| ------- | ------------------------------------------------- | -------------------------------------------------------- |
+| 1       | $h_j = m_{\sigma(j)} - f_b$                       | B4                                                       |
+| 2       | $T_j \le d'_j$                                    | G7                                                       |
+| 3       | $T_j \ge S + \tau_{0j}$                           | B6; menunggu dan layan $\ge 0$                           |
+| 4       | $S \ge p_b + \lambda$                             | I1                                                       |
+| 5       | $p_b \ge \pi_b + \theta^p_b \ge f_b + \theta^p_b$ | P5, P6                                                   |
+| 6       | $\theta^p_b \ge \theta^p(q_j)$                    | $D_b \ge q_j$ (P2); $\theta^p$ tidak turun bila $D$ naik |
+
+Rangkai langkah 2–6:
+
+$$d'_j \ \ge\ T_j \ \ge\ S + \tau_{0j} \ \ge\ p_b + \lambda + \tau_{0j} \ \ge\ f_b + \theta^p(q_j) + \lambda + \tau_{0j}$$
+
+Pindahkan $f_b$ ke kiri dan tambahkan $m_{\sigma(j)}$ di kedua ruas:
+
+$$h_j \ \ge\ \ell_j := (m_{\sigma(j)} - d'_j) + \theta^p(q_j) + \lambda + \tau_{0j}$$
+
+**Cara membacanya.** Setiap suku dekomposisi §1.5 diganti nilai terkecilnya:
+
+| Suku di §1.5                        | Nilai terkecil                                      |
+| ----------------------------------- | --------------------------------------------------- |
+| tunggu packing $\pi_b - f_b$        | $0$                                                 |
+| packing $p_b - \pi_b$               | $\theta^p(q_j)$ (batch hanya berisi node $j$)       |
+| muat dan tunggu berangkat $S - p_b$ | $\lambda$                                           |
+| perjalanan $A_j - S$                | $\tau_{0j}$ (langsung dari dapur)                   |
+| tunggu $W_j$ dan slack $d'_j - T_j$ | $0$                                                 |
+| sisa $m_{\sigma(j)} - d'_j$         | buffer $\delta$, ditambah selisih bila $d'_j < d_j$ |
+
+**Dua hasil langsung.**
+
+- **Uji per node:** bila $\ell_j > H^{max}$, instans tidak layak.
+- **Batas bawah objektif:** $\sum_j q_j h_j \ge \sum_j q_j \ell_j$. Ini _lower bound holding_ v3.1 §8.10; celah terhadap holding hasil metaheuristik membatasi seberapa jauh kita dari optimum (MO-6.3, MO-13.2).
+
+### 7.3 Jendela selesai masak per node, $F_j$
+
+Langkah yang sama memberi batas jam $f_b$ untuk batch yang memuat node $j$:
+
+$$F_j = [L_j,\ U_j], \qquad L_j = \max \left( m_{\sigma(j)} - H^{max},\ e_{dapur} + \theta^c(q_j) \right), \qquad U_j = m_{\sigma(j)} - \ell_j$$
+
+- $U_j$ dari rangkaian §7.2.
+- $m_{\sigma(j)} - H^{max}$ dari I3 + I4.
+- $e_{dapur} + \theta^c(q_j)$: batch berisi $j$ paling cepat matang setelah memasak sedikitnya $q_j$ porsi (P4, P8).
+
+Bila $L_j > U_j$, instans tidak layak; uji ini mencakup $\ell_j > H^{max}$. $F_j$ tidak bergantung pada rute maupun batch, sehingga dihitung sekali dalam $O(n)$.
+
+**Contoh, H5 dengan data §6.6.**
+
+| Node | $q_j$ | $m_j - d'_j$ | $\theta^p(q_j)$ | $\tau_{0j}$ | $\ell_j$ | $\theta^c(q_j)$ | $L_j$ | $U_j$ |
+| ---- | ----: | -----------: | --------------: | ----------: | -------: | --------------: | ----: | ----: |
+| 1    |    25 |           20 |              13 |          15 |       58 |              35 |   510 |   572 |
+| 2    |    40 |           20 |              14 |          30 |       74 |              38 |   470 |   516 |
+| 3    |    20 |           25 |              12 |          25 |       72 |              34 |   550 |   598 |
+| 4    |    35 |           20 |              14 |          20 |       64 |              37 |   430 |   486 |
+| 5    |    15 |           20 |              12 |          20 |       62 |              33 |   510 |   568 |
+
+Node 3 memakai $d'_3 = 645$, bukan $d_3 = 650$. $\sum_j q_j \ell_j = 1450 + 2960 + 1440 + 2240 + 930 = 9020$; holding jadwal tercepat §6.6 sekitar 3,6 kali batas ini.
+
+**$F_j$ syarat perlu, bukan cukup.** Batch $\lbrace 1, 3, 5 \rbrace$ punya jam bersama $[550, 568]$, tetapi §7.1 menunjukkan rencana itu tidak layak. $\ell_j$ mengabaikan tiga hal: trip dibatasi deadline **node lain** yang serute (node 4, $S \le 510$), perjalanan tidak langsung ($\Delta_5 = 95 > \tau_{05} = 20$), dan packing satu batch penuh ($\theta^p(60) = 16 > 12$).
+
+### 7.4 Kapan beberapa node bisa satu batch: sifat Helly
+
+**Proposisi (Helly, satu dimensi).** Untuk interval $F_j = [L_j, U_j]$, $j \in G$, ketiga pernyataan ini setara:
+
+1. Semua interval punya titik bersama.
+2. Setiap pasang interval beririsan.
+3. $\max_{j \in G} L_j \le \min_{j \in G} U_j$.
+
+Titik bersamanya tepat $\left[ \max_j L_j,\ \min_j U_j \right]$.
+
+**Bukti.**
+
+- **1 ⇒ 2.** Titik bersama semua interval juga titik bersama setiap pasang.
+- **2 ⇒ 3.** Misalkan $L_i$ ujung kiri terbesar dan $U_k$ ujung kanan terkecil. $F_i$ dan $F_k$ beririsan, jadi ada $t$ dengan $L_i \le t \le U_k$. (Bila $i = k$, pakai $L_i \le U_i$.)
+- **3 ⇒ 1.** Ambil $t = \max_j L_j$. Untuk setiap $j$: $L_j \le t$ dan $t \le \min_i U_i \le U_j$. ∎
+
+Akibatnya, sekelompok node bisa satu batch (dari sisi waktu) jika dan hanya jika **setiap pasangnya** bisa. Ini berbeda dengan kelompok saling tak serute (§3.8), yang secara umum sulit dicari.
+
+**Contoh, H5.** Pasangan yang jendelanya lepas: $\lbrace 2, 3 \rbrace$ ($516 < 550$), $\lbrace 4, 1 \rbrace$, $\lbrace 4, 3 \rbrace$, $\lbrace 4, 5 \rbrace$ ($486 < 510$). Batch $\lbrace 2, 4 \rbrace$ punya jam bersama $[470, 486]$, batch $\lbrace 1, 3, 5 \rbrace$ punya $[550, 568]$.
+
+### 7.5 Jumlah batch minimum: greedy piercing
+
+Satu batch adalah satu jam $f_b$, yaitu satu **titik** di garis waktu; node $j$ bisa masuk bila titiknya di $F_j$. Jumlah batch minimum dari sisi waktu adalah jumlah titik paling sedikit yang menusuk semua interval (_interval piercing_).
+
+**Algoritma** ($O(n \log n)$):
+
+1. Urutkan interval menurut ujung kanan $U_j$.
+2. Ambil interval pertama yang belum tertusuk; taruh titik $t = U_j$.
+3. Tandai semua interval dengan $L_i \le t \le U_i$ sebagai tertusuk.
+4. Ulangi sampai semua tertusuk. Jumlah titik $= \beta^{\ast}$.
+
+**Bukti optimal.** Misalkan greedy memilih interval $I_1, \dots, I_{\beta^{\ast}}$.
+
+1. **Saling lepas.** Saat $I_{t+1}$ dipilih, ia tidak memuat titik $U_{I_t}$, padahal $U_{I_{t+1}} \ge U_{I_t}$; jadi $L_{I_{t+1}} > U_{I_t}$.
+2. **Interval lepas butuh batch berbeda** (§7.4), jadi setiap rencana butuh $\ge \beta^{\ast}$ batch.
+3. **Greedy mencapainya**: setiap node masuk batch titik yang menusuknya. ∎
+
+Jumlah batch minimum sama dengan jumlah interval saling lepas terbanyak, dan greedy memberi keduanya: jawaban dan saksinya.
+
+**Mengapa ujung kanan.** Mengurutkan menurut ujung kiri gagal: pada $[0, 10]$, $[1, 2]$, $[3, 4]$, aturan itu menaruh titik di 10, 2, dan 4 (tiga titik), padahal titik 2 dan 4 cukup.
+
+**Contoh, H5.** Urutan menurut $U$: $F_4, F_2, F_5, F_1, F_3$. Titik 486 menusuk node 4 dan 2; titik 568 menusuk node 5, 1, dan 3. $\beta^{\ast} = 2 = \lceil 135/100 \rceil$, dengan batch $\lbrace 2, 4 \rbrace$ ($D = 75$) dan $\lbrace 1, 3, 5 \rbrace$ ($D = 60$). Pembagian ini persis rencana §7.1 yang tidak layak dengan rute S1: greedy menghitung **berapa** batch yang perlu, bukan pembagian yang pasti cocok dengan rute.
+
+**V6, tidak layak karena jumlah batch.** H5 dengan $H^{max} = 90$ dan $\lvert B \rvert = 3$. $L = (540, 500, 580, 460, 540)$, $U$ tetap. Greedy menaruh titik di 486 (node 4), 516 (node 2), 568 (node 5, 1), dan 598 (node 3): $\beta^{\ast} = 4 > 3$. Saksinya $F_4, F_2, F_5, F_3$, dengan keenam pasang lepas ($486 < 500$, $486 < 540$, $486 < 580$, $516 < 540$, $516 < 580$, $568 < 580$). Uji per node lolos (semua $L_j \le U_j$); yang gagal adalah uji bersama. Enumerasi H5-P (§7.9) dengan $H^{max} = 90$ memberi 0 rencana layak, juga bila $\lvert B \rvert = 4$.
+
+### 7.6 Uji sebelum mencari solusi
+
+$$\lvert B \rvert \ \ge\ \max \left( \left\lceil \frac{\sum_j q_j}{D^{max}} \right\rceil,\ \beta^{\ast} \right)$$
+
+| #   | Uji                                                                              | Gagal berarti                    | Biaya         |
+| --- | -------------------------------------------------------------------------------- | -------------------------------- | ------------- |
+| 1   | $a'_j \le d'_j$ (§2.3)                                                           | node tidak bisa dilayani         | $O(n)$        |
+| 2   | $\lceil \sum q / Q \rceil \le \lvert K \rvert \rho$ (§4.8)                       | trip tidak cukup                 | $O(n)$        |
+| 3   | $L_j \le U_j$ (§7.3)                                                             | node tidak bisa diberi jam masak | $O(n)$        |
+| 4   | $\max(\lceil \sum q / D^{max} \rceil,\ \beta^{\ast}) \le \lvert B \rvert$ (§7.5) | batch tidak cukup                | $O(n \log n)$ |
+
+Tidak ada uji yang menggantikan uji lain, dan semuanya syarat perlu. Contoh: H5-P dengan $\rho = 1$ lolos keempatnya tetapi tidak layak (§7.9); kasus seperti itu diputuskan solver exact (MO-6.2).
+
+### 7.7 Jadwal paling lambat
+
+**Masalahnya.** Misalkan semua keputusan diskret sudah dipilih: rute, trip per kendaraan beserta urutannya, dan pembagian serta urutan batch. Jarak sudah tetap, jadi yang tersisa adalah memilih jam agar
+
+$$\sum_j q_j h_j = \sum_j q_j \left( m_{\sigma(j)} - f_{b(j)} \right)$$
+
+minimum, yaitu agar jam selesai masak **sebesar mungkin**.
+
+**Semua aturan berbentuk selisih.** Setelah keputusan diskret tetap, $D_b$, $\theta^c_b$, dan $\theta^p_b$ diketahui dan semua Big-M hilang. Setiap aturan berbentuk $t_v - t_u \ge w$ ("jam $v$ paling cepat $w$ menit setelah jam $u$") atau batas $t_v \ge c$, $t_v \le c$:
+
+| Aturan                      | Bentuk                                                                                                           |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Masak, packing (P4, P5)     | $f_b - \gamma_b \ge \theta^c_b$, $\ p_b - \pi_b \ge \theta^p_b$                                                  |
+| Packing setelah matang (P6) | $\pi_b - f_b \ge 0$                                                                                              |
+| Lini (P7)                   | $\gamma_{b+1} - f_b \ge 0$, $\ \pi_{b+1} - p_b \ge 0$                                                            |
+| Release (I1)                | $S - p_b \ge \lambda$ untuk setiap batch di trip                                                                 |
+| Rute (§1.4)                 | $T_{j_1} - S \ge \tau_{0 j_1}$, $\ T_j - T_i \ge s_i + \tau_{ij}$, $\ E - T_{j_m} \ge s_{j_m} + \tau_{j_m, n+1}$ |
+| Rantai trip (G8)            | $S^{k,r+1} - E^{kr} \ge \lambda$                                                                                 |
+| Batas bawah                 | $\gamma_1 \ge e_{dapur}$, $\ S \ge e_0$, $\ T_j \ge a'_j$, $\ f_b \ge m_{\sigma(j)} - H^{max}$                   |
+| Batas atas                  | $T_j \le d'_j$, $\ E \le l_0$, $\ p_b \le l_0 - \lambda$                                                         |
+
+Sistem ini disebut **sistem kendala selisih**; polanya sama dengan _critical path method_ (CPM): setiap kegiatan punya jam paling awal dan paling lambat.
+
+**Proposisi (lattice).** Bila $t$ dan $t'$ jadwal layak, maka $\max(t, t')$ dan $\min(t, t')$, diambil per jam, juga layak.
+
+**Bukti untuk maksimum.**
+
+1. **Aturan selisih.** $\max(t_v, t'_v) \ge t_v \ge t_u + w$ dan $\max(t_v, t'_v) \ge t'_v \ge t'_u + w$, jadi $\max(t_v, t'_v) \ge \max(t_u, t'_u) + w$.
+2. **Batas bawah.** $\max(t_v, t'_v) \ge t_v \ge c$.
+3. **Batas atas.** Keduanya $\le c$, jadi maksimumnya juga.
+
+**Bukti untuk minimum** (cermin).
+
+1. **Aturan selisih.** $t_v \ge t_u + w \ge \min(t_u, t'_u) + w$ dan $t'_v \ge \min(t_u, t'_u) + w$, jadi $\min(t_v, t'_v) \ge \min(t_u, t'_u) + w$.
+2. **Batas bawah.** Keduanya $\ge c$.
+3. **Batas atas.** $\min(t_v, t'_v) \le t_v \le c$. ∎
+
+**Akibat.** Semua jam bilangan bulat di $[0, 1440)$, jadi jadwal layak berhingga banyaknya. Maksimum semuanya, $t^{lambat}$, dan minimum semuanya, $t^{cepat}$, juga layak, dan setiap jadwal layak memenuhi $t^{cepat}_v \le t_v \le t^{lambat}_v$ di setiap jam $v$. Khususnya $f^{lambat}_b$ adalah $f_b$ terbesar yang mungkin **untuk semua batch sekaligus**:
+
+- Holding setiap node minimum bersamaan: $h^{min}_j = m_{\sigma(j)} - f^{lambat}_{b(j)}$.
+- Tidak ada tawar-menawar antar-node; bobot $q_j$ apa pun (tidak negatif) memberi jadwal terbaik yang sama.
+
+Inilah dasar decoder produksi deterministik (v3.1 §9.1, MO-13.1): untuk rencana diskret yang tetap, holding minimum adalah satu perhitungan, bukan pencarian.
+
+**Lintasan mundur.** Aturan $t_v - t_u \ge w$ dibaca terbalik sebagai $t_u \le t_v - w$, lalu dikerjakan dari belakang:
+
+$$t^{lambat}_u = \min \left( \text{batas atas } u,\ \min_{\text{aturan } u \to v} \left( t^{lambat}_v - w \right) \right)$$
+
+Bentuk konkretnya:
+
+- **Trip terakhir kendaraan:** $S^{lambat} = S^{max}$.
+- **Trip sebelumnya:** $S^{lambat} = \min \left( S^{max},\ S^{lambat}_{\text{berikut}} - \lambda - \Delta \right)$, karena $E \le S_{\text{berikut}} - \lambda$ dan $E \ge S + \Delta$. Rantai ini hanya di dalam **satu kendaraan**.
+- **Batch, dari yang terakhir:**
+
+$$p^{lambat}_b = \min \left( \min_{\text{trip yang membawa } b} S^{lambat} - \lambda,\ \ \pi^{lambat}_{b+1},\ \ l_0 - \lambda \right), \qquad \pi^{lambat}_b = p^{lambat}_b - \theta^p_b$$
+
+$$f^{lambat}_b = \min \left( \pi^{lambat}_b,\ \ \gamma^{lambat}_{b+1} \right), \qquad \gamma^{lambat}_b = f^{lambat}_b - \theta^c_b$$
+
+Untuk batch terakhir, suku $\pi_{b+1}$ dan $\gamma_{b+1}$ tidak ada.
+
+**Kelayakan.** Hitung $t^{cepat}$ dengan lintasan maju yang memakai semua batas bawah, termasuk $f_b \ge \max_{j \in b} m_{\sigma(j)} - H^{max}$.
+
+**Proposisi.** Rencana diskret layak jika dan hanya jika $t^{cepat}_v \le t^{lambat}_v$ di setiap jam $v$.
+
+**Bukti.** Semua aturan selisih menunjuk maju dalam waktu (dapur → trip → node → pulang → trip berikutnya), jadi tidak ada lingkaran dan kedua lintasan terdefinisi.
+
+- **⇒.** Untuk jadwal layak $t$, induksi sepanjang lintasan maju memberi $t^{cepat} \le t$, dan sepanjang lintasan mundur memberi $t \le t^{lambat}$.
+- **⇐.** $t^{cepat}$ memenuhi semua aturan selisih dan batas bawah menurut konstruksinya, dan setiap batas atas karena $t^{cepat}_v \le t^{lambat}_v \le c$. Jadi $t^{cepat}$ sendiri adalah saksi. ∎
+
+Selisih $t^{lambat}_v - t^{cepat}_v$ adalah _slack_: berapa menit jam itu masih bisa digeser.
+
+### 7.8 Contoh: rute S1 dengan $H^{max} = 200$
+
+Pada $H^{max} = 120$ rute S1 tidak layak (§7.1), jadi contoh ini memakai $H^{max} = 200$. Data lain seperti §6.6, satu trip per kendaraan.
+
+**Lintasan mundur.** $S^{lambat}_A = 515$, $S^{lambat}_B = 510$.
+
+| Batch | Node    | Trip | $p^{lambat}_b$                  | $\pi^{lambat}_b$ | $f^{lambat}_b$         | $\gamma^{lambat}_b$ |
+| ----: | ------- | ---- | ------------------------------- | ---------------: | ---------------------- | ------------------: |
+|     2 | 1, 3, 5 | A, B | $\min(515, 510) - 10 = 500$     |              484 | 484                    |                 442 |
+|     1 | 2, 4    | A, B | $\min(500,\ \pi_2 = 484) = 484$ |              466 | $\min(466, 442) = 442$ |                 397 |
+
+$f^{lambat}_1$ dibatasi lini masak, bukan packingnya sendiri: batch 1 boleh matang sampai 466, tetapi lini harus kosong pukul 442 agar batch 2 matang pukul 484.
+
+**Holding minimum.**
+
+| Node | Batch | $f^{lambat}$ | $h^{min}_j$ | $q_j h_j$ |
+| ---- | ----: | -----------: | ----------: | --------: |
+| 1    |     2 |          484 |         146 |      3650 |
+| 2    |     1 |          442 |         148 |      5920 |
+| 3    |     2 |          484 |         186 |      3720 |
+| 4    |     1 |          442 |         108 |      3780 |
+| 5    |     2 |          484 |         146 |      2190 |
+|      |       |              |   **Total** | **19260** |
+
+| Jadwal                    | $\sum_j q_j h_j$ |
+| ------------------------- | ---------------: |
+| Tercepat (§6.6)           |            32355 |
+| Paling lambat             |            19260 |
+| Batas bawah $\sum q \ell$ |             9020 |
+
+Celah terhadap batas bawah berasal dari dua hal: satu batch berbagi satu jam masak yang ditentukan node paling mendesak (node 3 matang pukul 484 padahal makan pukul 670), serta batas dari rute dan lini masak yang tidak terlihat oleh $\ell_j$.
+
+**Kelayakan.** $f^{cepat}_1 = \max(300 + 45,\ 590 - 200) = 390$ dan $f^{cepat}_2 = \max(390 + 42,\ 670 - 200) = 470$. Slack $f_1 = 52$, $f_2 = 14$; rencana layak. $H^{max}$ terkecil yang masih layak adalah holding terbesar di jadwal paling lambat, $h_3 = 186$ (enumerasi: layak pada 186, tidak layak pada 185).
+
+### 7.9 Instans H5-P
+
+**Data:** tabel H5 (§3.3), $\delta_j = 20$, data produksi §5.5, $\lvert K \rvert = 2$, $\rho = 2$, $\lvert B \rvert = 3$, $\lambda = 10$, $H^{max} = 120$.
+
+**Enumerasi.** Semua susunan trip per kendaraan (kendaraan tak berlabel) dan semua pembagian node ke batch berurut; jadwal diselesaikan sebagai sistem kendala selisih (§7.7). Sebuah rencana adalah pasangan (susunan trip, pembagian batch).
+
+| Varian                            | Hasil                                                                               |
+| --------------------------------- | ----------------------------------------------------------------------------------- |
+| **H5-P**                          | 13 rencana layak (5 susunan trip); optimum unik D1: jarak **38**, holding **12395** |
+| $\rho = 1$                        | tidak layak, walau keempat uji §7.6 lolos                                           |
+| $\rho = 1$, $\lvert K \rvert = 3$ | optimum jarak 40, holding 11835                                                     |
+| V6: $H^{max} = 90$                | tidak layak ($\beta^{\ast} = 4 > 3$); juga tidak layak dengan $\lvert B \rvert = 4$ |
+| $H^{max} = 200$                   | optimum jarak 32 (rute S1), holding 18400                                           |
+
+Mengetatkan batas holding dari 200 ke 120 menaikkan jarak optimum dari 32 ke 38: rute dipecah menjadi trip pendek supaya makanan bisa dimasak lebih lambat.
+
+**Rencana optimum D1.**
+
+| Kendaraan | Trip ke-1 | Trip ke-2 |
+| --------- | --------- | --------- |
+| 1         | $(4)$     | $(2, 1)$  |
+| 2         | $(5)$     | $(3)$     |
+
+Jarak $8 + 12 + 8 + 10 = 38$. Batch 1 $= \lbrace 4 \rbrace$, batch 2 $= \lbrace 1, 2, 5 \rbrace$, batch 3 $= \lbrace 3 \rbrace$.
+
+| Trip     | $\Delta$ | $E^{\ast}$ | $S^{max}$ |
+| -------- | -------: | ---------: | --------: |
+| $(4)$    |       45 |        525 |       510 |
+| $(2, 1)$ |       85 |        585 |       540 |
+| $(5)$    |       50 |        610 |       590 |
+| $(3)$    |       60 |        635 |       620 |
+
+| Batch | Node    | $D_b$ | $\theta^c$ | $\theta^p$ |
+| ----: | ------- | ----: | ---------: | ---------: |
+|     1 | 4       |    35 |         37 |         14 |
+|     2 | 1, 2, 5 |    80 |         46 |         18 |
+|     3 | 3       |    20 |         34 |         12 |
+
+**Lintasan mundur, trip** (rantai hanya di dalam satu kendaraan):
+
+| Trip     | Kendaraan, urutan | Hitungan                    | $S^{lambat}$ |
+| -------- | ----------------- | --------------------------- | -----------: |
+| $(2, 1)$ | 1, ke-2           | $S^{max}$                   |          540 |
+| $(4)$    | 1, ke-1           | $\min(510,\ 540 - 10 - 45)$ |          485 |
+| $(3)$    | 2, ke-2           | $S^{max}$                   |          620 |
+| $(5)$    | 2, ke-1           | $\min(590,\ 620 - 10 - 50)$ |          560 |
+
+**Lintasan mundur, batch:**
+
+| Batch | Trip yang membawanya | $p^{lambat}_b$                          | $\pi^{lambat}_b$ | $f^{lambat}_b$         | $\gamma^{lambat}_b$ |
+| ----: | -------------------- | --------------------------------------- | ---------------: | ---------------------- | ------------------: |
+|     3 | $(3)$                | $620 - 10 = 610$                        |              598 | 598                    |                 564 |
+|     2 | $(2, 1)$, $(5)$      | $\min(\min(540, 560) - 10,\ 598) = 530$ |              512 | $\min(512, 564) = 512$ |                 466 |
+|     1 | $(4)$                | $\min(485 - 10,\ 512) = 475$            |              461 | $\min(461, 466) = 461$ |                 424 |
+
+**Holding minimum.**
+
+| Node | Batch | $f^{lambat}$ | $h^{min}_j$ | $q_j h_j$ |
+| ---- | ----: | -----------: | ----------: | --------: |
+| 1    |     2 |          512 |         118 |      2950 |
+| 2    |     2 |          512 |          78 |      3120 |
+| 3    |     3 |          598 |          72 |      1440 |
+| 4    |     1 |          461 |          89 |      3115 |
+| 5    |     2 |          512 |         118 |      1770 |
+|      |       |              |   **Total** | **12395** |
+
+Holding terbesar 118 $\le 120$; holding total sekitar 1,4 kali batas bawah 9020.
+
+**Kelayakan.** $f^{cepat}_1 = \max(300 + 37,\ 550 - 120) = 430$, $f^{cepat}_2 = \max(430 + 46,\ 630 - 120) = 510$, $f^{cepat}_3 = \max(510 + 34,\ 670 - 120) = 550$. Slack $31$, $2$, dan $48$: batch 2 hampir terkunci, karena node 1 dan 5 (makan 630) memaksanya matang $\ge 510$, sedangkan trip $(2, 1)$ harus berangkat $\le 540$.
+
+### 7.10 Keputusan MO-1.5
+
+| #   | Keputusan                                                                                                                                                                                   |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| K1  | Pemecahan demand memakai $\bar Q = \min(Q, D^{max})$; §1.7 nomor 6 menjadi $1 \le q_j \le \bar Q$; node yang tidak muat di batch adalah input tidak valid (§5.6)                            |
+| K2  | P4 dan P5 memakai "≥" dengan waktu bulat; durasi efektif $\theta^c$, $\theta^p$ dibulatkan ke atas; kelonggarannya setara dengan mulai lebih telat (§5.3)                                   |
+| K3  | Satu trip boleh membawa porsi dari beberapa batch; release $= \max_b p_b + \lambda$; satu $\lambda$ per trip, termasuk trip pertama (§6.1)                                                  |
+| K4  | Objektif Model D leksikografis: (jarak, $\sum_j q_j h_j$); tingkat keterlambatan gugur karena B3 (§6.4)                                                                                     |
+| K5  | I2: $p_b \le l_0 - \lambda$; Big-M $M^R = l_0 - e_0$ dan $M^h_j = m_{\sigma(j)} - e_{dapur}$ (§6.2, §6.3)                                                                                   |
+| K6  | Holding minimum per node $\ell_j = (m_{\sigma(j)} - d'_j) + \theta^p(q_j) + \lambda + \tau_{0j}$, jendela $F_j$, dan batas bawah objektif $\sum_j q_j \ell_j$ (§7.2, §7.3; MO-6.3, MO-13.2) |
+| K7  | Batas bawah jumlah batch: $\max(\lceil \sum q / D^{max} \rceil,\ \beta^{\ast})$ dengan $\beta^{\ast}$ dari greedy piercing; $\lvert B \rvert$ adalah parameter slot batch (§7.4–§7.6)       |
+| K8  | Untuk rencana diskret yang tetap, holding minimum = jadwal paling lambat (lintasan mundur); layak jika dan hanya jika $t^{cepat} \le t^{lambat}$ (§7.7; decoder MO-13.1)                    |
+| K9  | H5-P, rencana D1 beserta tabel lintasan mundurnya, contoh §7.8, tabel enumerasi, dan V6 menjadi fixture MO-2.3 (§7.8, §7.9)                                                                 |
+
+Pertanyaan terbuka:
+
+- Urutan batch dan pembagian node ke batch terbaik sebagai masalah optimasi (MO-12, MO-13.1).
+- Uji kapasitas lini masak untuk banyak batch, misalnya $e_{dapur} + \sum_b \theta^c_b$ terhadap jendela, untuk lower bound yang lebih ketat (MO-13.2).
+- Apakah pelanggaran holding dan release dilaporkan dengan penyebabnya ("batch $b$ terlambat untuk trip $(k,r)$") di validator (MO-3.2).
