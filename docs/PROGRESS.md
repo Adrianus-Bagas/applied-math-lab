@@ -154,3 +154,12 @@ Log handoff antar-thread. Satu entri per sub-milestone, ditambahkan saat thread 
 - Pertanyaan terbuka: urutan/pembagian batch terbaik (MO-12, MO-13.1); uji kapasitas lini masak (MO-13.2); label batch tertukar dan rantai trip lintas kendaraan saat hitung tangan (selalu tulis kolom batch dan kendaraan).
 - Berikutnya: MO-1.6 Review dan `docs/mathematics/mealops/`.
 - Jam: estimasi 8 / aktual ~7
+
+## ✅ [MO-1.6] Review dan `docs/mathematics/mealops/` — 2026-11-23
+
+- Selesai: semua angka `model.md` §2–§7 diverifikasi ulang dengan enumerasi independen; satu koreksi (§4.8: 41 solusi layak, bukan 32). §3.1 ditulis ulang: batas tegas tiga tingkat kegagalan (data mentah / semua solusi / satu solusi) beserta daftar ketaksamaan per tingkat. §1.7 nomor 8, §4.1 (sifat potongan penuh hanya bila `D^max ≥ Q`), §7.6 lima uji tingkat 2, `F_j` → `𝓕_j`, §8 keputusan R1–R5. File baru `README.md` (peta model, fixture MO-2.3 + nilai harapan) dan `notasi.md` (notasi gabungan, Big-M, label). Latihan review 5 soal + 3 kasus ulang.
+- Keputusan: R1–R5; "valid" hanya untuk input, "layak" untuk instans dan solusi. MO-1 selesai. `PROJECT_CONTEXT` v1.18.
+- File yang berubah: `docs/mathematics/mealops/{model,README,notasi}.md`, `docs/PROGRESS.md`, `PROJECT_CONTEXT.md`.
+- Pertanyaan terbuka: penentuan tingkat kegagalan masih rawan tertukar (soal 5: 1/4 benar; ulangan 3/3, istilah sempat keliru) → latih lagi di MO-2.1 dan MO-3.2; `d'_j` salah salin saat hitung tangan.
+- Berikutnya: MO-2.1 Skema instans: JSON Schema + Pydantic.
+- Jam: estimasi 3 / aktual ~3
