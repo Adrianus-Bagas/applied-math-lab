@@ -1,6 +1,6 @@
 # MealOps — Model Matematis
 
-> **Status:** §1 selesai (MO-1.1), §2 selesai (MO-1.2), §3 selesai (MO-1.3), §4 selesai (MO-1.4), §5–§7 selesai (MO-1.5). Review menyeluruh di MO-1.6.
+> **Status:** §1–§7 selesai (MO-1.1–MO-1.5). Direview di MO-1.6: semua angka contoh diverifikasi ulang dengan enumerasi independen, dan batas tiga tingkat kegagalan dipertegas (§3.1). Indeks dan fixture: `README.md`; notasi gabungan: `notasi.md`.
 > **Rujukan:** `PROJECT_CONTEXT` MealOps v3.1 §8. Glosarium §8.1 di sana adalah notasi kanonik; dokumen ini hanya menambah notasi yang belum ada dan menetapkan semantiknya.
 > **Catatan:** semua angka di contoh bersifat ilustratif. $H^{max}$ adalah parameter kebijakan, bukan standar keamanan pangan.
 
@@ -137,7 +137,7 @@ Catatan:
 
 ### 1.7 Pemeriksaan instans
 
-Instans ditolak saat validasi input bila salah satu syarat berikut dilanggar (diimplementasikan di MO-2.1 dan MO-3.2):
+Instans ditolak sebagai **input tidak valid** (tingkat 1, §3.1) bila salah satu syarat berikut dilanggar (diimplementasikan di MO-2.1 dan MO-3.2):
 
 1. Semua waktu dan durasi adalah bilangan bulat tak negatif, dan semua waktu berada di $[0, 1440)$.
 2. $a_j \le d_j$ untuk setiap node.
@@ -146,6 +146,9 @@ Instans ditolak saat validasi input bila salah satu syarat berikut dilanggar (di
 5. $\tau_{ij} \le \tau_{ik} + \tau_{kj}$ untuk semua $i, j, k$ (B6).
 6. $q_j$ bilangan bulat dengan $1 \le q_j \le \bar Q$ untuk setiap node setelah pemecahan demand, dengan $\bar Q = \min(Q, D^{max})$. Batas bawah ditetapkan di MO-1.2 (C1, §2.10), batas atas di MO-1.5 (K1, §5.6).
 7. Parameter produksi: $e_{dapur}$, $H^{max}$, dan $\lambda$ bilangan bulat tak negatif; $\phi^c_0, \phi^c_1, \phi^p_0, \phi^p_1 \ge 0$; $D^{max} \ge 1$ dan $\lvert B \rvert \ge 1$ bilangan bulat (MO-1.5).
+8. Parameter armada dan dapur: $Q$, $\lvert K \rvert$, dan $\rho$ bilangan bulat $\ge 1$; $e_0 \le l_0$; $c_{ii} = 0$, dan $c_{jj'} = 0$ bila $\sigma(j) = \sigma(j')$ (§4.1). Ditambahkan di MO-1.6.
+
+Semua syarat di atas hanya membaca data mentah. Tidak ada yang memakai jendela efektif $a'_j$, $d'_j$ atau besaran turunan lain; batas ini dijelaskan di §3.1.
 
 ## 2. Model A — CVRPTW (single-trip)
 
@@ -377,7 +380,7 @@ Kembali ke dapur pada $530 + 10 + 25 = 565$ dan $540 + 10 + 30 = 580$. Biaya $(4
 
 **Solusi Q:** $x_{01}, x_{12}, x_{25}, x_{34}, x_{43}$, yaitu satu rute ditambah siklus $3 \to 4 \to 3$. Q memenuhi F1–F3 dan biayanya hanya $(4 + 2 + 5) + (5 + 5) = 21$, tetapi F4 menuntut $u_4 \ge u_3 + 20$ dan $u_3 \ge u_4 + 40$, yang bila dijumlahkan memberi $0 \ge 60$. F6 juga menolaknya: $T_4 \ge T_3 + 35$ dan $T_3 \ge T_4 + 35$ memberi $0 \ge 70$.
 
-**Satu kendaraan.** Tanpa kapasitas dan jendela waktu, rute tunggal termurah adalah $0 \to 1 \to 2 \to 3 \to 4 \to 5$ dengan biaya $18 < 25$. Dengan ketaksamaan segitiga, menggabung rute tidak pernah menambah jarak, jadi kendaraan kedua dipakai semata-mata karena kapasitas dan waktu.
+**Satu kendaraan.** Tanpa kapasitas dan jendela waktu, rute tunggal termurah adalah $0 \to 1 \to 2 \to 3 \to 4 \to 5$ dengan biaya $18 < 25$. Karena $c$ di contoh ini juga memenuhi ketaksamaan segitiga ($c = \tau / 5$; B6 sendiri hanya mensyaratkan $\tau$), menggabung rute tidak pernah menambah jarak, jadi kendaraan kedua dipakai semata-mata karena kapasitas dan waktu.
 
 **$M$ terlalu kecil.** Bila F4 memakai $M = 50$, bukan $Q = 100$, Solusi P tertolak meski layak. Rantainya: $u_3 \ge u_4 + 40 \ge 60$ (arc dipakai); baris $(3,1)$ memberi $u_1 \ge u_3 + 30 - 50 \ge 40$; lalu $u_2 \ge u_1 + 50 \ge 90$ (arc dipakai); baris $(2,3)$ memberi $u_3 \ge u_2 + 40 - 50 \ge 80$; ulangi, $u_1 \ge 60$ dan $u_2 \ge 110 > Q$.
 
@@ -398,32 +401,100 @@ Yang belum dicakup Model A: lebih dari satu trip per kendaraan dan waktu muat $\
 
 ## 3. Contoh hitung tangan Model A: layak dan tidak layak
 
-Bagian ini tidak menambah rumus. Isinya satu instans kecil (H5) yang dikerjakan lengkap dengan tangan, beserta contoh solusi dan instans yang tidak layak. Semua angka diverifikasi dengan enumerasi, dan instans beserta nilai harapannya menjadi fixture di MO-2.3.
+Bagian ini tidak menambah model. Isinya batas tiga tingkat kegagalan (§3.1), lalu satu instans kecil (H5) yang dikerjakan lengkap dengan tangan, beserta contoh solusi dan instans yang tidak layak. Semua angka diverifikasi dengan enumerasi, dan instans beserta nilai harapannya menjadi fixture di MO-2.3.
 
 ### 3.1 Tiga tingkat kegagalan
 
-| Tingkat             | Artinya                                                  | Contoh                    | Yang menolak                |
-| ------------------- | -------------------------------------------------------- | ------------------------- | --------------------------- |
-| Input tidak valid   | Data melanggar §1.7; soalnya sendiri salah               | $a_j > d_j$, $q_j > Q$    | Validasi instans (MO-2.1)   |
-| Instans tidak layak | Data sah, tetapi tidak ada satu pun solusi yang layak    | Dapur tutup terlalu cepat | Solver melapor _infeasible_ |
-| Solusi tidak layak  | Instans punya solusi, tetapi solusi ini melanggar aturan | Muatan $115 > 100$        | Validator (MO-3.2)          |
+**Istilah.** _Valid_ dan _tidak valid_ hanya dipakai untuk **input**. _Layak_ dan _tidak layak_ dipakai untuk **instans** dan **solusi**. Jadi tidak ada "instans tidak valid" atau "input tidak layak".
 
-Cara memilih tingkat, ditanyakan berurutan:
+| Tingkat                | Pertanyaannya                                 | Yang dibaca                               | Bukti yang cukup                           | Yang menolak               |
+| ---------------------- | --------------------------------------------- | ----------------------------------------- | ------------------------------------------ | -------------------------- |
+| 1. Input tidak valid   | Apakah datanya sah sebagai soal?              | data mentah saja                          | satu syarat §1.7 yang dilanggar            | Validasi instans (MO-2.1)  |
+| 2. Instans tidak layak | Apakah himpunan solusi layak kosong?          | data + besaran turunan, atau semua solusi | argumen yang menutup **semua** solusi      | Uji §7.6 atau solver exact |
+| 3. Solusi tidak layak  | Apakah solusi **ini** melanggar aturan model? | data + satu solusi                        | satu baris model yang dilanggar solusi ini | Validator (MO-3.2)         |
 
-1. Apakah datanya melanggar daftar §1.7? Jika ya: input tidak valid.
-2. Apakah ada minimal satu solusi yang lolos? Jika tidak: instans tidak layak.
-3. "Solusi tidak layak" hanya dipakai saat menilai satu solusi tertentu.
+#### Batas tingkat 1: input tidak valid
+
+Termasuk tingkat 1 hanya syarat yang (a) bisa diperiksa dari angka-angka yang diberikan, **tanpa menghitung** besaran turunan seperti $a'_j$, $d'_j$, $\Delta$, $\ell_j$, atau $\beta^{\ast}$, dan (b) menyangkut satu angka, satu node, atau paling banyak tiga node sekaligus. Bila tingkat 1 gagal, bukti-bukti di dokumen ini tidak berlaku lagi, jadi pemeriksaan **berhenti** di sini.
+
+| Kelompok         | Ketaksamaan atau syarat                                                                                                           | §1.7 |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| Tipe dan rentang | semua waktu dan durasi bilangan bulat $\ge 0$; setiap waktu $< 1440$                                                              | 1    |
+| Jendela          | $a_j \le d_j$                                                                                                                     | 2    |
+| Buffer           | $s_j \le \delta_{\sigma(j)}$                                                                                                      | 3    |
+| Matriks          | $\tau_{ii} = 0$, $c_{ii} = 0$; $\tau_{jj'} = c_{jj'} = 0$ bila $\sigma(j) = \sigma(j')$                                           | 4, 8 |
+| Segitiga         | $\tau_{ij} \le \tau_{ik} + \tau_{kj}$                                                                                             | 5    |
+| Demand           | $1 \le q_j \le \bar Q = \min(Q, D^{max})$, bulat                                                                                  | 6    |
+| Produksi         | $e_{dapur}, H^{max}, \lambda \ge 0$ bulat; $\phi^c_0, \phi^c_1, \phi^p_0, \phi^p_1 \ge 0$; $D^{max}, \lvert B \rvert \ge 1$ bulat | 7    |
+| Armada dan dapur | $Q, \lvert K \rvert, \rho \ge 1$ bulat; $e_0 \le l_0$                                                                             | 8    |
+
+#### Batas tingkat 2: instans tidak layak
+
+Data lolos tingkat 1, tetapi **tidak ada satu pun** solusi yang memenuhi semua baris model. Pernyataan ini menyangkut seluruh himpunan solusi, jadi buktinya harus menutup semua kemungkinan. Ketaksamaan di bawah ini memakai besaran turunan; masing-masing **cukup** untuk membuktikan instans tidak layak.
+
+| Uji (instans tidak layak bila…)                                             | Artinya                                           | Model | Bagian     |
+| --------------------------------------------------------------------------- | ------------------------------------------------- | ----- | ---------- |
+| $a'_j > d'_j$ untuk suatu $j$                                               | node $j$ tidak bisa dilayani kendaraan khusus pun | A–D   | §2.3       |
+| $\lceil \sum_j q_j / Q \rceil > \lvert K \rvert \rho$                       | trip tidak cukup untuk total demand               | A–D   | §3.2, §4.8 |
+| ukuran kelompok saling tak serute $> \lvert K \rvert \rho$                  | trip tidak cukup karena node tidak bisa digabung  | A–D   | §3.8, §4.8 |
+| $L_j > U_j$ untuk suatu $j$ (termasuk $\ell_j > H^{max}$)                   | node $j$ tidak bisa diberi jam masak              | D     | §7.2, §7.3 |
+| $\max(\lceil \sum_j q_j / D^{max} \rceil,\ \beta^{\ast}) > \lvert B \rvert$ | batch tidak cukup                                 | C, D  | §7.5       |
+
+Untuk Model A, baca $\rho = 1$.
+
+Arah sebaliknya tidak berlaku: lolos semua uji **belum** berarti layak (contoh: H5-P dengan $\rho = 1$, §7.6; V5, §4.10). Instans terbukti layak hanya dengan satu saksi, yaitu satu solusi yang lolos tingkat 3. Bila tidak ada uji yang gagal dan belum ada saksi, solver exact atau enumerasi yang memutuskan (MO-6.2).
+
+#### Batas tingkat 3: solusi tidak layak
+
+Satu solusi tertentu diperiksa terhadap baris-baris model. Cukup satu baris dilanggar. Ketaksamaannya serupa dengan tingkat 2, tetapi kini dihitung **untuk solusi ini**, bukan untuk semua solusi.
+
+| Kelompok            | Ketaksamaan atau syarat (solusi tidak layak bila dilanggar)                                     | Baris         | Bagian     |
+| ------------------- | ----------------------------------------------------------------------------------------------- | ------------- | ---------- |
+| Struktur            | setiap node tepat di satu trip; tidak ada siklus                                                | F1, F2, G1–G3 | §2.6, §4.9 |
+| Armada              | jumlah kendaraan terpakai $\le \lvert K \rvert$; trip per kendaraan $\le \rho$                  | F3, G9        | §4.9       |
+| Kapasitas trip      | $\sum_{j \in \text{trip}} q_j \le Q$                                                            | F4–F5, G4–G5  | §2.7       |
+| Jendela             | $T^{\ast}_j \le d'_j$ di trip yang berangkat $e_0$ (termasuk pulang $\le l_0$)                  | F6–F7, G6–G7  | §2.7, §4.3 |
+| Rantai trip         | $S^{kr} \le S^{max}$ untuk trip $r \ge 2$, dengan $S^{k,r+1} \ge E^{kr} + \lambda$              | G8            | §4.4, §4.9 |
+| Batch               | setiap node tepat di satu batch; $D_b \le D^{max}$; batch terpakai $\le \lvert B \rvert$        | P1–P3, P8     | §5.2       |
+| Release dan holding | $S^{kr} \ge \max_{b \text{ di trip}} p_b + \lambda$; $p_b \le l_0 - \lambda$; $h_j \le H^{max}$ | I1–I4         | §6         |
+| Jadwal Model D      | bila solusi hanya memuat keputusan diskret: $t^{cepat}_v \le t^{lambat}_v$ di setiap jam $v$    | semua         | §7.7       |
+
+Bentuk solusi (dengan atau tanpa jam) ditetapkan di MO-3.1. Pelanggaran rantai trip dan release dicatat beserta penyebabnya (trip atau batch sebelumnya); jenis laporannya pertanyaan terbuka MO-3.2.
+
+#### Satu besaran, tiga tingkat
+
+Ketaksamaan yang mirip bisa muncul di ketiga tingkat. Yang membedakan adalah apa yang dibandingkan.
+
+| Besaran   | Tingkat 1 (data mentah)           | Tingkat 2 (semua solusi)                                                 | Tingkat 3 (satu solusi)                          |
+| --------- | --------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------ |
+| Jendela   | $a_j \le d_j$                     | $a'_j \le d'_j$                                                          | $T^{\ast}_j \le d'_j$, $S^{kr} \le S^{max}$      |
+| Kapasitas | $q_j \le \bar Q$                  | $\lceil \sum q / Q \rceil \le \lvert K \rvert \rho$                      | $\sum_{j \in \text{trip}} q_j \le Q$             |
+| Batch     | $D^{max} \ge 1$, $q_j \le \bar Q$ | $\max(\lceil \sum q / D^{max} \rceil, \beta^{\ast}) \le \lvert B \rvert$ | $D_b \le D^{max}$, batch $\le \lvert B \rvert$   |
+| Armada    | $\lvert K \rvert, \rho \ge 1$     | kelompok saling tak serute $\le \lvert K \rvert \rho$                    | kendaraan $\le \lvert K \rvert$, trip $\le \rho$ |
+| Holding   | $H^{max} \ge 0$                   | $L_j \le U_j$ ($\ell_j \le H^{max}$)                                     | $h_j \le H^{max}$                                |
+
+#### Cara memilih tingkat
+
+Tanyakan berurutan dan berhenti di jawaban "ya" pertama:
+
+1. **Apakah ada syarat tingkat 1 yang dilanggar?** Periksa data mentah saja. Jika ya: input tidak valid.
+2. **Apakah terbukti tidak ada satu pun solusi yang layak?** Jika ya: instans tidak layak.
+3. **Sedang menilai satu solusi tertentu, dan solusi itu melanggar satu baris model?** Jika ya: solusi tidak layak.
+
+Petunjuk cepat: bila untuk melihat masalahnya kamu perlu menghitung $a'_j$, $d'_j$, $S^{max}$, $\ell_j$, atau $\beta^{\ast}$, jawabannya **bukan** input tidak valid. Bila masalahnya hanya muncul pada satu solusi dan solusi lain lolos, jawabannya **bukan** instans tidak layak.
 
 **Beban bukti tidak simetris.** Menunjukkan instans layak cukup dengan satu solusi yang lolos pemeriksaan (satu saksi). Menunjukkan instans tidak layak memerlukan argumen yang menutup semua kemungkinan solusi sekaligus.
 
+**Urutan di validator.** Tingkat 1 diperiksa dulu dan menghentikan semuanya bila gagal. Uji tingkat 2 (§7.6) murah, jadi dijalankan sebelum pencarian. Pada instans yang tidak layak, setiap solusi pasti juga tidak layak di tingkat 3. Validator melaporkan keduanya: ketidaklayakan instans beserta ujinya, dan pelanggaran solusi beserta barisnya.
+
 ### 3.2 Resep hitung tangan
 
-1. **Periksa input** terhadap §1.7.
-2. **Jendela efektif** setiap node: $a'_j = \max(a_j,\ e_0 + \tau_{0j})$ dan $d'_j = \min(d_j,\ l_0 - s_j - \tau_{j,n+1})$. Bila ada $a'_j > d'_j$, instans tidak layak.
-3. **Batas bawah kendaraan:** $\lceil \sum_j q_j / Q \rceil$. Bila melebihi $\lvert K \rvert$, instans tidak layak.
+1. **Periksa input** terhadap §1.7 (tingkat 1).
+2. **Jendela efektif** setiap node: $a'_j = \max(a_j,\ e_0 + \tau_{0j})$ dan $d'_j = \min(d_j,\ l_0 - s_j - \tau_{j,n+1})$. Bila ada $a'_j > d'_j$, instans tidak layak (tingkat 2).
+3. **Batas bawah kendaraan:** $\lceil \sum_j q_j / Q \rceil$. Bila melebihi $\lvert K \rvert$, instans tidak layak (tingkat 2).
 4. **Uji arc** (§2.8). Tulis dulu ujung $j$ dan $d'_j$-nya, baru hitung $a'_i + s_i + \tau_{ij}$ dari pangkal $i$.
 5. **Periksa setiap rute** (§2.7) dalam tabel berkolom $A_j$, $a'_j$, $T^{\ast}_j = \max(A_j, a'_j)$, $W_j$, $d'_j$. Kolom $a'_j$ ditulis supaya $\max$ tidak terlewat.
-6. **Periksa struktur dan armada** (setiap node tepat sekali, jumlah rute $\le \lvert K \rvert$), lalu hitung biaya.
+6. **Periksa struktur dan armada** (setiap node tepat sekali, jumlah rute $\le \lvert K \rvert$), lalu hitung biaya. Langkah 5–6 adalah tingkat 3.
 
 ### 3.3 Instans H5
 
@@ -571,11 +642,11 @@ Dengan $\lvert K \rvert = 3$, V3 dan V4 menjadi layak (optimum 36 dan 34). Tidak
 
 ### 3.9 Keputusan MO-1.3
 
-| #   | Keputusan                                                                                                                                   |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| E1  | Tiga tingkat kegagalan dibedakan dan dilaporkan terpisah: input tidak valid, instans tidak layak, solusi tidak layak (§3.1)                 |
-| E2  | H5, solusi di §3.5 dan §3.7, serta varian V1–V4 menjadi fixture hitung tangan (MO-2.3); nilai harapannya adalah angka di bagian ini         |
-| E3  | Batas bawah jumlah kendaraan: yang terbesar dari $\lceil \sum q / Q \rceil$ dan ukuran kelompok saling tak serute (§3.8); dipakai di MO-6.3 |
+| #   | Keputusan                                                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| E1  | Tiga tingkat kegagalan dibedakan dan dilaporkan terpisah: input tidak valid, instans tidak layak, solusi tidak layak (§3.1). Batas tiap tingkat dipertegas di MO-1.6 (R1) |
+| E2  | H5, solusi di §3.5 dan §3.7, serta varian V1–V4 menjadi fixture hitung tangan (MO-2.3); nilai harapannya adalah angka di bagian ini                                       |
+| E3  | Batas bawah jumlah kendaraan: yang terbesar dari $\lceil \sum q / Q \rceil$ dan ukuran kelompok saling tak serute (§3.8); dipakai di MO-6.3                               |
 
 Pertanyaan terbuka untuk MO-3.2: apakah "pulang setelah $l_0$" dilaporkan sebagai pelanggaran tersendiri atau sebagai pelanggaran jendela efektif $d'_j$.
 
@@ -619,7 +690,9 @@ $$k = \left\lceil \frac{q}{Q} \right\rceil, \qquad r = q - (k-1)Q$$
 
 Potongan 30 memberi $5 + 0{,}6 = 5{,}6$, disimpan $6$ (B1).
 
-**Akibat.** Potongan berukuran $Q$ selalu sendirian di tripnya ($0 \to j \to n+1$), karena menambah node apa pun membuat muatan $\ge Q + 1$. Dengan aturan "penuh dulu", setiap titik punya paling banyak satu potongan yang tidak penuh, jadi dua potongan dari titik yang sama tidak pernah serute.
+**Akibat, bila $D^{max} \ge Q$ (jadi $\bar Q = Q$).** Potongan berukuran $Q$ selalu sendirian di tripnya ($0 \to j \to n+1$), karena menambah node apa pun membuat muatan $\ge Q + 1$. Dengan aturan "penuh dulu", setiap titik punya paling banyak satu potongan yang tidak penuh, jadi dua potongan dari titik yang sama tidak pernah serute.
+
+Bila $D^{max} < Q$, kedua sifat itu gugur. Contoh: $Q = 100$, $D^{max} = 80$, $q = 170$ memberi potongan $(80, 80, 10)$, dan potongan 80 dan 10 boleh serute karena $90 \le Q$. Eliminasi subtour tidak terganggu, karena bersandar pada $q_j \ge 1$ (C3), bukan pada sifat ini.
 
 **Ini aproksimasi, bukan split delivery sebenarnya** (A6, v3.1 §8.4). Ukuran potongan dikunci sebelum optimasi, jadi sebagian solusi hilang. Contoh dengan $Q = 100$, titik X berdemand 120, ditambah titik lain (jumlah trip minimum dihitung dengan enumerasi pengepakan):
 
@@ -809,7 +882,7 @@ Menurut definisi $d'_i$, berlaku $d'_i + s_i + \tau_{i,n+1} \le l_0$, jadi $M^E_
 ### 4.8 Hubungan dengan Model A dan batas bawah
 
 - **$\rho = 1$ sama dengan Model A.** G8 dan bagian pertama G9 hilang, dan $X_{ij}$ berperan sebagai $x_{ij}$. Pada H5 dengan $\rho = 1$, enumerasi Model B memberi 9 solusi layak dengan optimum 32, sama dengan §3.5.
-- **Menambah $\rho$ tidak pernah memperburuk optimum**, karena setiap solusi dengan $\rho$ trip juga solusi dengan $\rho + 1$ trip. Pada H5 dengan $\rho = 2$ dan $\lambda = 10$, solusi layak naik menjadi 32 tetapi optimum tetap 32.
+- **Menambah $\rho$ tidak pernah memperburuk optimum**, karena setiap solusi dengan $\rho$ trip juga solusi dengan $\rho + 1$ trip. Pada H5 dengan $\rho = 2$ dan $\lambda = 10$, solusi layak naik dari 9 menjadi 41 (32 di antaranya memakai multi-trip), tetapi optimum tetap 32.
 - **Batas bawah kini dalam satuan trip.** Instans tidak layak bila $\lceil \sum_j q_j / Q \rceil > \lvert K \rvert \cdot \rho$. Kelompok node yang saling tak serute (E3) kini membatasi jumlah **trip**, bukan jumlah kendaraan.
 
 ### 4.9 Pemeriksaan solusi Model B
@@ -926,16 +999,16 @@ Pola yang sama dengan V4: node 2, 4, dan 6 sama-sama berdeadline awal, dan trip 
 
 ### 4.11 Keputusan MO-1.4
 
-| #   | Keputusan                                                                                                                                                                                          |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| J1  | Pemecahan demand "penuh dulu": $k = \lceil q/Q \rceil$, $k-1$ potongan berukuran $Q$ dan sisa $r = q - (k-1)Q$; potongan mewarisi jendela, $m$, $\delta$; $s_j$ dihitung ulang per potongan (§4.1) |
-| J2  | Trip pertama tidak dikenai $\lambda$; $\lambda$ hanya di antara dua trip berurutan. Model B dengan $\rho = 1$ sama dengan Model A (§4.4, §4.8)                                                     |
-| J3  | Formulasi G0–G10: v3.1 §8.6 ditambah propagasi muatan G5 (eliminasi subtour tetap bersandar pada kapasitas, C3) dan urutan trip bersyarat G8 (§4.5, §4.6)                                          |
-| J4  | Big-M per baris dengan nilai terkecil yang sah: $Q$, $M^S_j$, $M_{ij}$, $M^E_i$, $M^{\lambda}$ (§4.7)                                                                                              |
-| J5  | Satu trip diringkas $(\Delta, E^{\ast}, S^{max})$ dengan $T_j(S) = \max(S + \Delta_j, T^{\ast}_j)$; kendaraan diperiksa dengan rantai berangkat secepat mungkin (§4.3, §4.4, §4.9)                 |
-| J6  | Batas bawah dalam satuan trip: $\lceil \sum q/Q \rceil \le \lvert K \rvert \rho$; kelompok saling tak serute membatasi jumlah trip (§4.8)                                                          |
-| J7  | H5-S, ringkasan trip, M1, M2, tabel enumerasi, dan V5 menjadi fixture MO-2.3 (§4.10)                                                                                                               |
-| J8  | Notasi $\Delta_j$, $\Delta$ untuk durasi tanpa menunggu (bukan $D$, yang berarti ukuran batch di v3.1)                                                                                             |
+| #   | Keputusan                                                                                                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| J1  | Pemecahan demand "penuh dulu": $k = \lceil q/Q \rceil$, $k-1$ potongan berukuran $Q$ dan sisa $r = q - (k-1)Q$; potongan mewarisi jendela, $m$, $\delta$; $s_j$ dihitung ulang per potongan (§4.1)                        |
+| J2  | Trip pertama tidak dikenai $\lambda$; $\lambda$ hanya di antara dua trip berurutan. Model B dengan $\rho = 1$ sama dengan Model A (§4.4, §4.8). Di Model D, $\lambda$ trip pertama masuk lewat release date I1 (K3, §6.1) |
+| J3  | Formulasi G0–G10: v3.1 §8.6 ditambah propagasi muatan G5 (eliminasi subtour tetap bersandar pada kapasitas, C3) dan urutan trip bersyarat G8 (§4.5, §4.6)                                                                 |
+| J4  | Big-M per baris dengan nilai terkecil yang sah: $Q$, $M^S_j$, $M_{ij}$, $M^E_i$, $M^{\lambda}$ (§4.7)                                                                                                                     |
+| J5  | Satu trip diringkas $(\Delta, E^{\ast}, S^{max})$ dengan $T_j(S) = \max(S + \Delta_j, T^{\ast}_j)$; kendaraan diperiksa dengan rantai berangkat secepat mungkin (§4.3, §4.4, §4.9)                                        |
+| J6  | Batas bawah dalam satuan trip: $\lceil \sum q/Q \rceil \le \lvert K \rvert \rho$; kelompok saling tak serute membatasi jumlah trip (§4.8)                                                                                 |
+| J7  | H5-S, ringkasan trip, M1, M2, tabel enumerasi, dan V5 menjadi fixture MO-2.3 (§4.10)                                                                                                                                      |
+| J8  | Notasi $\Delta_j$, $\Delta$ untuk durasi tanpa menunggu (bukan $D$, yang berarti ukuran batch di v3.1)                                                                                                                    |
 
 Yang belum dicakup Model B: urutan trip terbaik per kendaraan sebagai masalah optimasi (MO-11.2), serta produksi batch, release date, dan holding (Model C dan D, §5 dan §6).
 
@@ -1224,17 +1297,17 @@ $$h_j \ \ge\ \ell_j := (m_{\sigma(j)} - d'_j) + \theta^p(q_j) + \lambda + \tau_{
 - **Uji per node:** bila $\ell_j > H^{max}$, instans tidak layak.
 - **Batas bawah objektif:** $\sum_j q_j h_j \ge \sum_j q_j \ell_j$. Ini _lower bound holding_ v3.1 §8.10; celah terhadap holding hasil metaheuristik membatasi seberapa jauh kita dari optimum (MO-6.3, MO-13.2).
 
-### 7.3 Jendela selesai masak per node, $F_j$
+### 7.3 Jendela selesai masak per node, $\mathcal{F}_j$
 
 Langkah yang sama memberi batas jam $f_b$ untuk batch yang memuat node $j$:
 
-$$F_j = [L_j,\ U_j], \qquad L_j = \max \left( m_{\sigma(j)} - H^{max},\ e_{dapur} + \theta^c(q_j) \right), \qquad U_j = m_{\sigma(j)} - \ell_j$$
+$$\mathcal{F}_j = [L_j,\ U_j], \qquad L_j = \max \left( m_{\sigma(j)} - H^{max},\ e_{dapur} + \theta^c(q_j) \right), \qquad U_j = m_{\sigma(j)} - \ell_j$$
 
 - $U_j$ dari rangkaian §7.2.
 - $m_{\sigma(j)} - H^{max}$ dari I3 + I4.
 - $e_{dapur} + \theta^c(q_j)$: batch berisi $j$ paling cepat matang setelah memasak sedikitnya $q_j$ porsi (P4, P8).
 
-Bila $L_j > U_j$, instans tidak layak; uji ini mencakup $\ell_j > H^{max}$. $F_j$ tidak bergantung pada rute maupun batch, sehingga dihitung sekali dalam $O(n)$.
+Bila $L_j > U_j$, instans tidak layak; uji ini mencakup $\ell_j > H^{max}$. $\mathcal{F}_j$ tidak bergantung pada rute maupun batch, sehingga dihitung sekali dalam $O(n)$.
 
 **Contoh, H5 dengan data §6.6.**
 
@@ -1248,11 +1321,11 @@ Bila $L_j > U_j$, instans tidak layak; uji ini mencakup $\ell_j > H^{max}$. $F_j
 
 Node 3 memakai $d'_3 = 645$, bukan $d_3 = 650$. $\sum_j q_j \ell_j = 1450 + 2960 + 1440 + 2240 + 930 = 9020$; holding jadwal tercepat §6.6 sekitar 3,6 kali batas ini.
 
-**$F_j$ syarat perlu, bukan cukup.** Batch $\lbrace 1, 3, 5 \rbrace$ punya jam bersama $[550, 568]$, tetapi §7.1 menunjukkan rencana itu tidak layak. $\ell_j$ mengabaikan tiga hal: trip dibatasi deadline **node lain** yang serute (node 4, $S \le 510$), perjalanan tidak langsung ($\Delta_5 = 95 > \tau_{05} = 20$), dan packing satu batch penuh ($\theta^p(60) = 16 > 12$).
+**$\mathcal{F}\_j$ syarat perlu, bukan cukup.** Batch $\lbrace 1, 3, 5 \rbrace$ punya jam bersama $[550, 568]$, tetapi §7.1 menunjukkan rencana itu tidak layak. $\ell_j$ mengabaikan tiga hal: trip dibatasi deadline **node lain** yang serute (node 4, $S \le 510$), perjalanan tidak langsung ($\Delta_5 = 95 > \tau_{05} = 20$), dan packing satu batch penuh ($\theta^p(60) = 16 > 12$).
 
 ### 7.4 Kapan beberapa node bisa satu batch: sifat Helly
 
-**Proposisi (Helly, satu dimensi).** Untuk interval $F_j = [L_j, U_j]$, $j \in G$, ketiga pernyataan ini setara:
+**Proposisi (Helly, satu dimensi).** Untuk interval $\mathcal{F}_j = [L_j, U_j]$, $j \in G$, ketiga pernyataan ini setara:
 
 1. Semua interval punya titik bersama.
 2. Setiap pasang interval beririsan.
@@ -1263,7 +1336,7 @@ Titik bersamanya tepat $\left[ \max_j L_j,\ \min_j U_j \right]$.
 **Bukti.**
 
 - **1 ⇒ 2.** Titik bersama semua interval juga titik bersama setiap pasang.
-- **2 ⇒ 3.** Misalkan $L_i$ ujung kiri terbesar dan $U_k$ ujung kanan terkecil. $F_i$ dan $F_k$ beririsan, jadi ada $t$ dengan $L_i \le t \le U_k$. (Bila $i = k$, pakai $L_i \le U_i$.)
+- **2 ⇒ 3.** Misalkan $L_i$ ujung kiri terbesar dan $U_k$ ujung kanan terkecil. $\mathcal{F}_i$ dan $\mathcal{F}_k$ beririsan, jadi ada $t$ dengan $L_i \le t \le U_k$. (Bila $i = k$, pakai $L_i \le U_i$.)
 - **3 ⇒ 1.** Ambil $t = \max_j L_j$. Untuk setiap $j$: $L_j \le t$ dan $t \le \min_i U_i \le U_j$. ∎
 
 Akibatnya, sekelompok node bisa satu batch (dari sisi waktu) jika dan hanya jika **setiap pasangnya** bisa. Ini berbeda dengan kelompok saling tak serute (§3.8), yang secara umum sulit dicari.
@@ -1272,7 +1345,7 @@ Akibatnya, sekelompok node bisa satu batch (dari sisi waktu) jika dan hanya jika
 
 ### 7.5 Jumlah batch minimum: greedy piercing
 
-Satu batch adalah satu jam $f_b$, yaitu satu **titik** di garis waktu; node $j$ bisa masuk bila titiknya di $F_j$. Jumlah batch minimum dari sisi waktu adalah jumlah titik paling sedikit yang menusuk semua interval (_interval piercing_).
+Satu batch adalah satu jam $f_b$, yaitu satu **titik** di garis waktu; node $j$ bisa masuk bila titiknya di $\mathcal{F}_j$. Jumlah batch minimum dari sisi waktu adalah jumlah titik paling sedikit yang menusuk semua interval (_interval piercing_).
 
 **Algoritma** ($O(n \log n)$):
 
@@ -1291,22 +1364,27 @@ Jumlah batch minimum sama dengan jumlah interval saling lepas terbanyak, dan gre
 
 **Mengapa ujung kanan.** Mengurutkan menurut ujung kiri gagal: pada $[0, 10]$, $[1, 2]$, $[3, 4]$, aturan itu menaruh titik di 10, 2, dan 4 (tiga titik), padahal titik 2 dan 4 cukup.
 
-**Contoh, H5.** Urutan menurut $U$: $F_4, F_2, F_5, F_1, F_3$. Titik 486 menusuk node 4 dan 2; titik 568 menusuk node 5, 1, dan 3. $\beta^{\ast} = 2 = \lceil 135/100 \rceil$, dengan batch $\lbrace 2, 4 \rbrace$ ($D = 75$) dan $\lbrace 1, 3, 5 \rbrace$ ($D = 60$). Pembagian ini persis rencana §7.1 yang tidak layak dengan rute S1: greedy menghitung **berapa** batch yang perlu, bukan pembagian yang pasti cocok dengan rute.
+**Contoh, H5.** Urutan menurut $U$: $\mathcal{F}_4, \mathcal{F}_2, \mathcal{F}_5, \mathcal{F}_1, \mathcal{F}_3$. Titik 486 menusuk node 4 dan 2; titik 568 menusuk node 5, 1, dan 3. $\beta^{\ast} = 2 = \lceil 135/100 \rceil$, dengan batch $\lbrace 2, 4 \rbrace$ ($D = 75$) dan $\lbrace 1, 3, 5 \rbrace$ ($D = 60$). Pembagian ini persis rencana §7.1 yang tidak layak dengan rute S1: greedy menghitung **berapa** batch yang perlu, bukan pembagian yang pasti cocok dengan rute.
 
-**V6, tidak layak karena jumlah batch.** H5 dengan $H^{max} = 90$ dan $\lvert B \rvert = 3$. $L = (540, 500, 580, 460, 540)$, $U$ tetap. Greedy menaruh titik di 486 (node 4), 516 (node 2), 568 (node 5, 1), dan 598 (node 3): $\beta^{\ast} = 4 > 3$. Saksinya $F_4, F_2, F_5, F_3$, dengan keenam pasang lepas ($486 < 500$, $486 < 540$, $486 < 580$, $516 < 540$, $516 < 580$, $568 < 580$). Uji per node lolos (semua $L_j \le U_j$); yang gagal adalah uji bersama. Enumerasi H5-P (§7.9) dengan $H^{max} = 90$ memberi 0 rencana layak, juga bila $\lvert B \rvert = 4$.
+**V6, tidak layak karena jumlah batch.** H5 dengan $H^{max} = 90$ dan $\lvert B \rvert = 3$. $L = (540, 500, 580, 460, 540)$, $U$ tetap. Greedy menaruh titik di 486 (node 4), 516 (node 2), 568 (node 5, 1), dan 598 (node 3): $\beta^{\ast} = 4 > 3$. Saksinya $\mathcal{F}_4, \mathcal{F}_2, \mathcal{F}_5, \mathcal{F}_3$, dengan keenam pasang lepas ($486 < 500$, $486 < 540$, $486 < 580$, $516 < 540$, $516 < 580$, $568 < 580$). Uji per node lolos (semua $L_j \le U_j$); yang gagal adalah uji bersama. Enumerasi H5-P (§7.9) dengan $H^{max} = 90$ memberi 0 rencana layak, juga bila $\lvert B \rvert = 4$.
 
 ### 7.6 Uji sebelum mencari solusi
 
 $$\lvert B \rvert \ \ge\ \max \left( \left\lceil \frac{\sum_j q_j}{D^{max}} \right\rceil,\ \beta^{\ast} \right)$$
 
-| #   | Uji                                                                              | Gagal berarti                    | Biaya         |
-| --- | -------------------------------------------------------------------------------- | -------------------------------- | ------------- |
-| 1   | $a'_j \le d'_j$ (§2.3)                                                           | node tidak bisa dilayani         | $O(n)$        |
-| 2   | $\lceil \sum q / Q \rceil \le \lvert K \rvert \rho$ (§4.8)                       | trip tidak cukup                 | $O(n)$        |
-| 3   | $L_j \le U_j$ (§7.3)                                                             | node tidak bisa diberi jam masak | $O(n)$        |
-| 4   | $\max(\lceil \sum q / D^{max} \rceil,\ \beta^{\ast}) \le \lvert B \rvert$ (§7.5) | batch tidak cukup                | $O(n \log n)$ |
+Semua uji tingkat 2 (§3.1) dikumpulkan di sini:
 
-Tidak ada uji yang menggantikan uji lain, dan semuanya syarat perlu. Contoh: H5-P dengan $\rho = 1$ lolos keempatnya tetapi tidak layak (§7.9); kasus seperti itu diputuskan solver exact (MO-6.2).
+| #   | Uji                                                                              | Gagal berarti                    | Biaya                 |
+| --- | -------------------------------------------------------------------------------- | -------------------------------- | --------------------- |
+| 1   | $a'_j \le d'_j$ (§2.3)                                                           | node tidak bisa dilayani         | $O(n)$                |
+| 2   | $\lceil \sum q / Q \rceil \le \lvert K \rvert \rho$ (§4.8)                       | trip tidak cukup                 | $O(n)$                |
+| 3   | ukuran kelompok saling tak serute $\le \lvert K \rvert \rho$ (§3.8, J6)          | trip tidak cukup                 | $O(n^2)$ per kelompok |
+| 4   | $L_j \le U_j$ (§7.3)                                                             | node tidak bisa diberi jam masak | $O(n)$                |
+| 5   | $\max(\lceil \sum q / D^{max} \rceil,\ \beta^{\ast}) \le \lvert B \rvert$ (§7.5) | batch tidak cukup                | $O(n \log n)$         |
+
+Uji 3 berbeda sifatnya dari uji 5. Kelompok node yang berpasangan tak serute adalah _clique_ di graf "tak serute", dan mencari clique terbesar secara umum sulit (NP-hard). Kelompok mana pun yang ditemukan, misalnya dengan greedy, tetap memberi batas bawah yang sah. Untuk batch, sifat Helly (§7.4) membuat kelompok terbesar dapat dihitung persis.
+
+Tidak ada uji yang menggantikan uji lain, dan semuanya syarat perlu untuk kelayakan. Contoh: H5-P dengan $\rho = 1$ lolos kelimanya tetapi tidak layak (§7.9); kasus seperti itu diputuskan solver exact (MO-6.2).
 
 ### 7.7 Jadwal paling lambat
 
@@ -1411,7 +1489,7 @@ $f^{lambat}_1$ dibatasi lini masak, bukan packingnya sendiri: batch 1 boleh mata
 
 Celah terhadap batas bawah berasal dari dua hal: satu batch berbagi satu jam masak yang ditentukan node paling mendesak (node 3 matang pukul 484 padahal makan pukul 670), serta batas dari rute dan lini masak yang tidak terlihat oleh $\ell_j$.
 
-**Kelayakan.** $f^{cepat}_1 = \max(300 + 45,\ 590 - 200) = 390$ dan $f^{cepat}_2 = \max(390 + 42,\ 670 - 200) = 470$. Slack $f_1 = 52$, $f_2 = 14$; rencana layak. $H^{max}$ terkecil yang masih layak adalah holding terbesar di jadwal paling lambat, $h_3 = 186$ (enumerasi: layak pada 186, tidak layak pada 185).
+**Kelayakan.** $f^{cepat}_1 = \max(300 + 45,\ 590 - 200) = 390$ dan $f^{cepat}_2 = \max(390 + 42,\ 670 - 200) = 470$. Slack $f_1 = 52$, $f_2 = 14$; rencana layak. $H^{max}$ terkecil yang masih layak untuk rencana ini adalah holding terbesar di jadwal paling lambat, $h_3 = 186$ (enumerasi: layak pada 186, tidak layak pada 185).
 
 ### 7.9 Instans H5-P
 
@@ -1422,7 +1500,7 @@ Celah terhadap batas bawah berasal dari dua hal: satu batch berbagi satu jam mas
 | Varian                            | Hasil                                                                               |
 | --------------------------------- | ----------------------------------------------------------------------------------- |
 | **H5-P**                          | 13 rencana layak (5 susunan trip); optimum unik D1: jarak **38**, holding **12395** |
-| $\rho = 1$                        | tidak layak, walau keempat uji §7.6 lolos                                           |
+| $\rho = 1$                        | tidak layak, walau kelima uji §7.6 lolos                                            |
 | $\rho = 1$, $\lvert K \rvert = 3$ | optimum jarak 40, holding 11835                                                     |
 | V6: $H^{max} = 90$                | tidak layak ($\beta^{\ast} = 4 > 3$); juga tidak layak dengan $\lvert B \rvert = 4$ |
 | $H^{max} = 200$                   | optimum jarak 32 (rute S1), holding 18400                                           |
@@ -1485,20 +1563,32 @@ Holding terbesar 118 $\le 120$; holding total sekitar 1,4 kali batas bawah 9020.
 
 ### 7.10 Keputusan MO-1.5
 
-| #   | Keputusan                                                                                                                                                                                   |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| K1  | Pemecahan demand memakai $\bar Q = \min(Q, D^{max})$; §1.7 nomor 6 menjadi $1 \le q_j \le \bar Q$; node yang tidak muat di batch adalah input tidak valid (§5.6)                            |
-| K2  | P4 dan P5 memakai "≥" dengan waktu bulat; durasi efektif $\theta^c$, $\theta^p$ dibulatkan ke atas; kelonggarannya setara dengan mulai lebih telat (§5.3)                                   |
-| K3  | Satu trip boleh membawa porsi dari beberapa batch; release $= \max_b p_b + \lambda$; satu $\lambda$ per trip, termasuk trip pertama (§6.1)                                                  |
-| K4  | Objektif Model D leksikografis: (jarak, $\sum_j q_j h_j$); tingkat keterlambatan gugur karena B3 (§6.4)                                                                                     |
-| K5  | I2: $p_b \le l_0 - \lambda$; Big-M $M^R = l_0 - e_0$ dan $M^h_j = m_{\sigma(j)} - e_{dapur}$ (§6.2, §6.3)                                                                                   |
-| K6  | Holding minimum per node $\ell_j = (m_{\sigma(j)} - d'_j) + \theta^p(q_j) + \lambda + \tau_{0j}$, jendela $F_j$, dan batas bawah objektif $\sum_j q_j \ell_j$ (§7.2, §7.3; MO-6.3, MO-13.2) |
-| K7  | Batas bawah jumlah batch: $\max(\lceil \sum q / D^{max} \rceil,\ \beta^{\ast})$ dengan $\beta^{\ast}$ dari greedy piercing; $\lvert B \rvert$ adalah parameter slot batch (§7.4–§7.6)       |
-| K8  | Untuk rencana diskret yang tetap, holding minimum = jadwal paling lambat (lintasan mundur); layak jika dan hanya jika $t^{cepat} \le t^{lambat}$ (§7.7; decoder MO-13.1)                    |
-| K9  | H5-P, rencana D1 beserta tabel lintasan mundurnya, contoh §7.8, tabel enumerasi, dan V6 menjadi fixture MO-2.3 (§7.8, §7.9)                                                                 |
+| #   | Keputusan                                                                                                                                                                                             |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| K1  | Pemecahan demand memakai $\bar Q = \min(Q, D^{max})$; §1.7 nomor 6 menjadi $1 \le q_j \le \bar Q$; node yang tidak muat di batch adalah input tidak valid (§5.6)                                      |
+| K2  | P4 dan P5 memakai "≥" dengan waktu bulat; durasi efektif $\theta^c$, $\theta^p$ dibulatkan ke atas; kelonggarannya setara dengan mulai lebih telat (§5.3)                                             |
+| K3  | Satu trip boleh membawa porsi dari beberapa batch; release $= \max_b p_b + \lambda$; satu $\lambda$ per trip, termasuk trip pertama (§6.1)                                                            |
+| K4  | Objektif Model D leksikografis: (jarak, $\sum_j q_j h_j$); tingkat keterlambatan gugur karena B3 (§6.4)                                                                                               |
+| K5  | I2: $p_b \le l_0 - \lambda$; Big-M $M^R = l_0 - e_0$ dan $M^h_j = m_{\sigma(j)} - e_{dapur}$ (§6.2, §6.3)                                                                                             |
+| K6  | Holding minimum per node $\ell_j = (m_{\sigma(j)} - d'_j) + \theta^p(q_j) + \lambda + \tau_{0j}$, jendela $\mathcal{F}_j$, dan batas bawah objektif $\sum_j q_j \ell_j$ (§7.2, §7.3; MO-6.3, MO-13.2) |
+| K7  | Batas bawah jumlah batch: $\max(\lceil \sum q / D^{max} \rceil,\ \beta^{\ast})$ dengan $\beta^{\ast}$ dari greedy piercing; $\lvert B \rvert$ adalah parameter slot batch (§7.4–§7.6)                 |
+| K8  | Untuk rencana diskret yang tetap, holding minimum = jadwal paling lambat (lintasan mundur); layak jika dan hanya jika $t^{cepat} \le t^{lambat}$ (§7.7; decoder MO-13.1)                              |
+| K9  | H5-P, rencana D1 beserta tabel lintasan mundurnya, contoh §7.8, tabel enumerasi, dan V6 menjadi fixture MO-2.3 (§7.8, §7.9)                                                                           |
 
 Pertanyaan terbuka:
 
 - Urutan batch dan pembagian node ke batch terbaik sebagai masalah optimasi (MO-12, MO-13.1).
 - Uji kapasitas lini masak untuk banyak batch, misalnya $e_{dapur} + \sum_b \theta^c_b$ terhadap jendela, untuk lower bound yang lebih ketat (MO-13.2).
 - Apakah pelanggaran holding dan release dilaporkan dengan penyebabnya ("batch $b$ terlambat untuk trip $(k,r)$") di validator (MO-3.2).
+
+## 8. Review MO-1.6
+
+Semua angka contoh di §2–§7 diverifikasi ulang dengan enumerasi yang ditulis terpisah dari perhitungan awal. Satu angka diperbaiki (§4.8: 41 solusi layak, bukan 32).
+
+| #   | Keputusan                                                                                                                                                                                                  |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | Batas tiga tingkat kegagalan dipertegas (§3.1): tingkat 1 hanya membaca data mentah; tingkat 2 menyangkut semua solusi; tingkat 3 satu solusi. "Valid" hanya untuk input, "layak" untuk instans dan solusi |
+| R2  | §1.7 nomor 8: $Q, \lvert K \rvert, \rho \ge 1$, $e_0 \le l_0$, dan $c = 0$ untuk potongan selokasi                                                                                                         |
+| R3  | §7.6 memuat kelima uji tingkat 2, termasuk kelompok saling tak serute (uji 3, batas bawah heuristik)                                                                                                       |
+| R4  | Sifat "potongan penuh selalu sendirian" hanya berlaku bila $D^{max} \ge Q$ (§4.1)                                                                                                                          |
+| R5  | Jendela masak ditulis $\mathcal{F}_j$ agar tidak tertukar dengan label baris F0–F8; notasi gabungan di `notasi.md`, fixture di `README.md`                                                                 |
