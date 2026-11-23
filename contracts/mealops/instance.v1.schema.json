@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://applied-math-lab.portfolio-bagas.tech/contracts/mealops.instance.v1.schema.json",
+  "$defs": {
+    "DeliveryNode": {
+      "additionalProperties": false,
+      "description": "Node pengantaran setelah pemecahan demand.",
+      "properties": {
+        "point": {
+          "description": "sigma(j): nomor lokasi titik layanan, 1..P",
+          "minimum": 1,
+          "title": "Point",
+          "type": "integer"
+        },
+        "demand": {
+          "description": "q_j: porsi untuk node ini (C1: >= 1)",
+          "minimum": 1,
+          "title": "Demand",
+          "type": "integer"
+        },
+        "service": {
+          "description": "s_j: waktu layan, sudah dibulatkan ke atas (B1)",
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "title": "Service",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "point",
+        "demand",
+        "service"
+      ],
+      "title": "DeliveryNode",
+      "type": "object"
+    },
+    "Fleet": {
+      "additionalProperties": false,
+      "description": "Armada homogen (A1).",
+      "properties": {
+        "vehicles": {
+          "description": "|K|: jumlah kendaraan",
+          "minimum": 1,
+          "title": "Vehicles",
+          "type": "integer"
+        },
+        "capacity": {
+          "description": "Q: kapasitas satu kendaraan (porsi)",
+          "minimum": 1,
+          "title": "Capacity",
+          "type": "integer"
+        },
+        "max_trips": {
+          "description": "rho: trip maksimum per kendaraan per hari",
+          "minimum": 1,
+          "title": "Max Trips",
+          "type": "integer"
+        },
+        "load_time": {
+          "description": "lambda: waktu muat per trip (menit)",
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "title": "Load Time",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "vehicles",
+        "capacity",
+        "max_trips",
+        "load_time"
+      ],
+      "title": "Fleet",
+      "type": "object"
+    },
+    "Kitchen": {
+      "additionalProperties": false,
+      "description": "Jam operasional dapur untuk armada, [e_0, l_0].",
+      "properties": {
+        "open": {
+          "description": "e_0: kendaraan paling cepat berangkat (menit)",
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "title": "Open",
+          "type": "integer"
+        },
+        "close": {
+          "description": "l_0: kendaraan paling lambat kembali (menit)",
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "title": "Close",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "open",
+        "close"
+      ],
+      "title": "Kitchen",
+      "type": "object"
+    },
+    "Production": {
+      "additionalProperties": false,
+      "description": "Parameter dapur untuk Model C/D. Tidak ada = Model A/B saja.\n\nKoefisien per porsi disimpan sebagai bilangan bulat \"menit per 1000 porsi\", supaya\ndurasi theta(D) = ceil(phi_0 + phi_1 * D) bisa dihitung eksak dengan aritmetika\nbilangan bulat di Python dan Rust (lihat `cook_minutes`).",
+      "properties": {
+        "kitchen_start": {
+          "description": "e_dapur: jam lini masak mulai (menit)",
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "title": "Kitchen Start",
+          "type": "integer"
+        },
+        "batch_capacity": {
+          "description": "D^max: kapasitas satu batch (porsi)",
+          "minimum": 1,
+          "title": "Batch Capacity",
+          "type": "integer"
+        },
+        "max_batches": {
+          "description": "|B|: jumlah slot batch per hari",
+          "minimum": 1,
+          "title": "Max Batches",
+          "type": "integer"
+        },
+        "cook_fixed": {
+          "description": "phi^c_0: setup masak per batch (menit)",
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "title": "Cook Fixed",
+          "type": "integer"
+        },
+        "cook_per_1000": {
+          "description": "phi^c_1 x 1000: menit per 1000 porsi",
+          "minimum": 0,
+          "title": "Cook Per 1000",
+          "type": "integer"
+        },
+        "pack_fixed": {
+          "description": "phi^p_0: setup packing per batch (menit)",
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "title": "Pack Fixed",
+          "type": "integer"
+        },
+        "pack_per_1000": {
+          "description": "phi^p_1 x 1000: menit per 1000 porsi",
+          "minimum": 0,
+          "title": "Pack Per 1000",
+          "type": "integer"
+        },
+        "holding_max": {
+          "description": "H^max: batas holding, parameter kebijakan (B8)",
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "title": "Holding Max",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kitchen_start",
+        "batch_capacity",
+        "max_batches",
+        "cook_fixed",
+        "cook_per_1000",
+        "pack_fixed",
+        "pack_per_1000",
+        "holding_max"
+      ],
+      "title": "Production",
+      "type": "object"
+    },
+    "ServicePoint": {
+      "additionalProperties": false,
+      "description": "Titik layanan asli (sebelum pemecahan demand). Jendela diwarisi node-nodenya.",
+      "properties": {
+        "name": {
+          "description": "Nama titik layanan, untuk tampilan",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "ready": {
+          "description": "a: paling awal bisa menerima (menit)",
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "title": "Ready",
+          "type": "integer"
+        },
+        "consume": {
+          "description": "m: waktu konsumsi terencana (menit)",
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "title": "Consume",
+          "type": "integer"
+        },
+        "buffer": {
+          "description": "delta: buffer serah-terima; deadline d = m - delta",
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "title": "Buffer",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "ready",
+        "consume",
+        "buffer"
+      ],
+      "title": "ServicePoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Satu instans MealOps yang sudah melewati pemecahan demand (`model.md` §4.1).",
+  "properties": {
+    "schema_version": {
+      "const": "mealops.instance.v1",
+      "description": "Versi kontrak; naik bila bentuk JSON berubah tidak kompatibel",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "name": {
+      "description": "Identitas instans, misalnya 'H5'",
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "kitchen": {
+      "$ref": "#/$defs/Kitchen"
+    },
+    "fleet": {
+      "$ref": "#/$defs/Fleet"
+    },
+    "points": {
+      "description": "Titik layanan, lokasi 1..P",
+      "items": {
+        "$ref": "#/$defs/ServicePoint"
+      },
+      "minItems": 1,
+      "title": "Points",
+      "type": "array"
+    },
+    "nodes": {
+      "description": "Node pengantaran, j = 1..n",
+      "items": {
+        "$ref": "#/$defs/DeliveryNode"
+      },
+      "minItems": 1,
+      "title": "Nodes",
+      "type": "array"
+    },
+    "travel_time": {
+      "description": "tau: (P+1) x (P+1) menit, baris/kolom 0 = dapur",
+      "items": {
+        "items": {
+          "exclusiveMaximum": 1440,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": "array"
+      },
+      "title": "Travel Time",
+      "type": "array"
+    },
+    "distance": {
+      "description": "c: (P+1) x (P+1) meter, baris/kolom 0 = dapur",
+      "items": {
+        "items": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": "array"
+      },
+      "title": "Distance",
+      "type": "array"
+    },
+    "production": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Production"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Parameter Model C/D; null untuk Model A/B"
+    }
+  },
+  "required": [
+    "schema_version",
+    "name",
+    "kitchen",
+    "fleet",
+    "points",
+    "nodes",
+    "travel_time",
+    "distance"
+  ],
+  "title": "Instance",
+  "type": "object"
+}

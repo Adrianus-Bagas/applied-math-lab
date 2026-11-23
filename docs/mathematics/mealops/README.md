@@ -56,7 +56,7 @@ Semua nilai di bawah diverifikasi dua kali: saat bagiannya ditulis dan ulang sec
 
 | Pertanyaan                                                                                            | Ke             |
 | ----------------------------------------------------------------------------------------------------- | -------------- |
-| Bedakan input tidak valid vs instans tidak layak di skema                                             | MO-2.1         |
+| ~~Bedakan input tidak valid vs instans tidak layak di skema~~ selesai (MO-ADR-009)                    | MO-2.1 ✅      |
 | Penskalaan instans Solomon ke bilangan bulat; objektif hierarkis (kendaraan, lalu jarak)              | MO-2.3, MO-6.3 |
 | Jenis pelanggaran: pulang setelah $l_0$, terlambat karena trip sebelumnya, batch terlambat untuk trip | MO-3.2         |
 | Urutan trip terbaik per kendaraan                                                                     | MO-11.2        |

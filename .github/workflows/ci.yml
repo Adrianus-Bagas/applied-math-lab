@@ -56,6 +56,7 @@ jobs:
               - "**/*.go"
               - "packages/go/**"
               - "contracts/**"
+              - "datasets/**"
             rust:
               - *shared
               - &rustpaths
@@ -74,7 +75,10 @@ jobs:
               - .python-version
               - "packages/python/**"
               - "services/*/worker/**"
+              - "services/*/py/**"
               - "contracts/jobs/**"
+              - "contracts/mealops/**"
+              - "datasets/**"
             web:
               - *shared
               - *rustpaths
