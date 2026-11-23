@@ -54,7 +54,12 @@ lint-go:
 lint-py:
     uv run ruff format --check
     uv run ruff check
-    uv run mypy packages/python/*/src packages/rust/*/python services/*/worker/src
+    uv run mypy packages/python/*/src packages/rust/*/python services/*/worker/src services/*/py/src
+    uv run python -m mealops.schema --check
+
+# Generate ulang JSON Schema instans MealOps dari model Pydantic (MO-ADR-009)
+schema:
+    uv run python -m mealops.schema
 
 lint-web: wasm
     pnpm --filter web lint

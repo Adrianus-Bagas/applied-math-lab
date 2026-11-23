@@ -163,3 +163,12 @@ Log handoff antar-thread. Satu entri per sub-milestone, ditambahkan saat thread 
 - Pertanyaan terbuka: penentuan tingkat kegagalan masih rawan tertukar (soal 5: 1/4 benar; ulangan 3/3, istilah sempat keliru) → latih lagi di MO-2.1 dan MO-3.2; `d'_j` salah salin saat hitung tangan.
 - Berikutnya: MO-2.1 Skema instans: JSON Schema + Pydantic.
 - Jam: estimasi 3 / aktual ~3
+
+## ✅ [MO-2.1] Skema instans: JSON Schema + Pydantic — 2026-11-23
+
+- Selesai: paket `mealops` (`services/mealops/py`): model Pydantic `mealops.instance.v1` (ketat, immutable; matriks per lokasi; `production` opsional, φ₁ bulat per 1000 porsi) dan `check_input` (§1.7 antar-field, semua pelanggaran + `IssueCode`). `just schema` → `contracts/mealops/instance.v1.schema.json` (+ `--check`). Fixture `h5.instance.json`. 33 tes pytest (termasuk pembanding §3.8) + tes Go santhosh v6; `just check` hijau.
+- Keputusan: MO-ADR-009; tingkat 2 tidak masuk kontrak (pertanyaan terbuka MO-1.3/MO-1.6 ditutup); skema hasil generate wajib di `.prettierignore`; anggota workspace via `uv sync --all-packages`. `PROJECT_CONTEXT` v1.19.
+- File yang berubah: `services/mealops/py/*`, `contracts/mealops/*`, `contracts/mealops_instance_test.go`, `datasets/mealops/fixtures/h5.instance.json`, `pyproject.toml`, `uv.lock`, `justfile`, `.prettierignore`, `ci.yml`, `docs/decisions/{MO-ADR-009-*,README}.md`, `docs/mathematics/mealops/README.md`, `docs/PROGRESS.md`, `PROJECT_CONTEXT.md`.
+- Pertanyaan terbuka: cek tingkat 2/3 benar; pelanggaran segitiga yang berakibat `a'_j > d'_j` dikira tingkat 2 (latih lagi di MO-2.2, MO-3.2); builder pemecahan demand + `s⁰ + ηq` (MO-2.2); `$ref` kontrak job (MO-WS).
+- Berikutnya: MO-2.2 Generator ber-seed.
+- Jam: estimasi 5 / aktual ~1

@@ -1,0 +1,2 @@
+# Di-generate dari Pydantic (mealops.schema); format dijaga generatornya (MO-ADR-009).
+contracts/mealops/*.schema.json
