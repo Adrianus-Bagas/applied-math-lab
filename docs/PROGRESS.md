@@ -172,3 +172,12 @@ Log handoff antar-thread. Satu entri per sub-milestone, ditambahkan saat thread 
 - Pertanyaan terbuka: cek tingkat 2/3 benar; pelanggaran segitiga yang berakibat `a'_j > d'_j` dikira tingkat 2 (latih lagi di MO-2.2, MO-3.2); builder pemecahan demand + `s⁰ + ηq` (MO-2.2); `$ref` kontrak job (MO-WS).
 - Berikutnya: MO-2.2 Generator ber-seed.
 - Jam: estimasi 5 / aktual ~1
+
+## ✅ [MO-2.2] Generator ber-seed — 2026-11-25
+
+- Selesai: paket `mealops.generator`: `rng` (aliran bernama PCG64 + SeedSequence), `geometry` (lokasi R/C/RC, normal terpotong, jarak/waktu bulat eksak), `demand` (potongan "penuh dulu", `s_j`, `|K|`), `windows` (jendela dengan `a'_j ≤ d'_j` terbukti), `params`, `build` (`generate`, JSON kanonik, manifest), CLI `just gen`. Teori: subaditivitas `⌈·⌉`, sampling penolakan, lema max ≤ min. Doc `docs/mathematics/mealops/generator.md`. 100+ tes, golden hash.
+- Keputusan: G1–G5 (`PROJECT_CONTEXT` §5.1); ruff `allowed-confusables`; `synthetic/` tidak di-commit; pertanyaan terbuka MO-2.1 soal segitiga → tingkat 1 ditutup. `PROJECT_CONTEXT` v1.20.
+- File yang berubah: `services/mealops/py/src/mealops/generator/*`, `services/mealops/py/tests/test_generator_*.py`, `pyproject.toml`, `justfile`, `.gitignore`, `.prettierignore`, `docs/mathematics/mealops/{generator,README}.md`, `docs/PROGRESS.md`, `PROJECT_CONTEXT.md`.
+- Pertanyaan terbuka: off-by-one `range`, `s_maks` per titik, dan langkah cek terakhir masih sering terlewat; bug "sah tapi salah" hanya tertangkap tes nilai.
+- Berikutnya: MO-2.3a Fixture hitung tangan (dipecah, bagian kecil per sesi).
+- Jam: estimasi 6 / aktual ~9

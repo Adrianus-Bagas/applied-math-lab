@@ -45,3 +45,5 @@ datasets/**/raw/
 
 apps/web/src/wasm/
 apps/web/public/wasm/
+
+datasets/mealops/synthetic/
