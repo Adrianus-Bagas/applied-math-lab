@@ -184,3 +184,7 @@ stack-ps:
 # Ikuti log, misalnya: just stack-logs hello-worker
 stack-logs *services:
     {{ compose }} logs -f {{ services }}
+
+# Instans sintetis MealOps: just gen 42  atau  just gen 42 --params p.json
+gen seed *args:
+    uv run python -m mealops.generator --seed {{ seed }} {{ args }}

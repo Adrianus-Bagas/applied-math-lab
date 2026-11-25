@@ -6,3 +6,4 @@ apps/web/src/wasm/
 apps/web/public/wasm/
 # Di-generate dari Pydantic (mealops.schema); format dijaga generatornya (MO-ADR-009).
 contracts/mealops/*.schema.json
+datasets/mealops/synthetic/

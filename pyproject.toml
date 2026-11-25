@@ -34,6 +34,8 @@ select = [
   "PT",  # gaya pytest
   "RUF", # aturan khusus ruff
 ]
+# Notasi matematika di komentar/docstring (model.md) sengaja memakai huruf Yunani
+allowed-confusables = ["σ", "ρ", "ν", "–"]
 
 # ---------- mypy ----------
 [tool.mypy]
