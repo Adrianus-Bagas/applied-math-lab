@@ -1,5 +1,6 @@
 pnpm-lock.yaml
-datasets/
+# Data mentah unduhan harus identik dengan sumbernya (MO-2.3b)
+datasets/**/raw/
 apps/web/.next
 apps/web/next-env.d.ts
 apps/web/src/wasm/

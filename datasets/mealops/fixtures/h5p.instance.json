@@ -1,0 +1,99 @@
+{
+  "schema_version": "mealops.instance.v1",
+  "name": "H5-P",
+  "kitchen": {
+    "open": 480,
+    "close": 680
+  },
+  "fleet": {
+    "vehicles": 2,
+    "capacity": 100,
+    "max_trips": 2,
+    "load_time": 10
+  },
+  "points": [
+    {
+      "name": "T1",
+      "ready": 560,
+      "consume": 630,
+      "buffer": 20
+    },
+    {
+      "name": "T2",
+      "ready": 510,
+      "consume": 590,
+      "buffer": 20
+    },
+    {
+      "name": "T3",
+      "ready": 600,
+      "consume": 670,
+      "buffer": 20
+    },
+    {
+      "name": "T4",
+      "ready": 480,
+      "consume": 550,
+      "buffer": 20
+    },
+    {
+      "name": "T5",
+      "ready": 580,
+      "consume": 630,
+      "buffer": 20
+    }
+  ],
+  "nodes": [
+    {
+      "point": 1,
+      "demand": 25,
+      "service": 10
+    },
+    {
+      "point": 2,
+      "demand": 40,
+      "service": 15
+    },
+    {
+      "point": 3,
+      "demand": 20,
+      "service": 10
+    },
+    {
+      "point": 4,
+      "demand": 35,
+      "service": 5
+    },
+    {
+      "point": 5,
+      "demand": 15,
+      "service": 10
+    }
+  ],
+  "travel_time": [
+    [0, 15, 30, 25, 20, 20],
+    [15, 0, 15, 30, 25, 25],
+    [30, 15, 0, 25, 40, 40],
+    [25, 30, 25, 0, 25, 45],
+    [20, 25, 40, 25, 0, 40],
+    [20, 25, 40, 45, 40, 0]
+  ],
+  "distance": [
+    [0, 300, 600, 500, 400, 400],
+    [300, 0, 300, 600, 500, 500],
+    [600, 300, 0, 500, 800, 800],
+    [500, 600, 500, 0, 500, 900],
+    [400, 500, 800, 500, 0, 800],
+    [400, 500, 800, 900, 800, 0]
+  ],
+  "production": {
+    "kitchen_start": 300,
+    "batch_capacity": 100,
+    "max_batches": 3,
+    "cook_fixed": 30,
+    "cook_per_1000": 200,
+    "pack_fixed": 10,
+    "pack_per_1000": 100,
+    "holding_max": 120
+  }
+}

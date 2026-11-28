@@ -1,0 +1,138 @@
+{
+  "base": "h5.instance.json",
+  "source": "docs/mathematics/mealops/model.md §3.8",
+  "variants": [
+    {
+      "name": "V1",
+      "note": "l_0 = 630: d'_3 = 595 < a'_3 = 600",
+      "patch": [{ "op": "replace", "path": "/kitchen/close", "value": 630 }],
+      "expect": { "level": "instans_tidak_layak" }
+    },
+    {
+      "name": "V2",
+      "note": "|K| = 1: total demand 135 > 100",
+      "patch": [{ "op": "replace", "path": "/fleet/vehicles", "value": 1 }],
+      "expect": { "level": "instans_tidak_layak" }
+    },
+    {
+      "name": "V3",
+      "note": "q = (60, 60, 10, 60, 10): dua node 60 pasti sekendaraan",
+      "patch": [
+        { "op": "replace", "path": "/nodes/0/demand", "value": 60 },
+        { "op": "replace", "path": "/nodes/1/demand", "value": 60 },
+        { "op": "replace", "path": "/nodes/2/demand", "value": 10 },
+        { "op": "replace", "path": "/nodes/3/demand", "value": 60 },
+        { "op": "replace", "path": "/nodes/4/demand", "value": 10 }
+      ],
+      "expect": { "level": "instans_tidak_layak" }
+    },
+    {
+      "name": "V3-K3",
+      "note": "V3 dengan |K| = 3",
+      "patch": [
+        { "op": "replace", "path": "/nodes/0/demand", "value": 60 },
+        { "op": "replace", "path": "/nodes/1/demand", "value": 60 },
+        { "op": "replace", "path": "/nodes/2/demand", "value": 10 },
+        { "op": "replace", "path": "/nodes/3/demand", "value": 60 },
+        { "op": "replace", "path": "/nodes/4/demand", "value": 10 },
+        { "op": "replace", "path": "/fleet/vehicles", "value": 3 }
+      ],
+      "expect": { "level": "layak", "optimum": 3600 }
+    },
+    {
+      "name": "V4",
+      "note": "node 2, 3, 5 berjendela [540, 560]: saling tak serute",
+      "patch": [
+        { "op": "replace", "path": "/points/1/ready", "value": 540 },
+        { "op": "replace", "path": "/points/1/consume", "value": 580 },
+        { "op": "replace", "path": "/points/2/ready", "value": 540 },
+        { "op": "replace", "path": "/points/2/consume", "value": 580 },
+        { "op": "replace", "path": "/points/4/ready", "value": 540 },
+        { "op": "replace", "path": "/points/4/consume", "value": 580 }
+      ],
+      "expect": { "level": "instans_tidak_layak" }
+    },
+    {
+      "name": "V4-K3",
+      "note": "V4 dengan |K| = 3",
+      "patch": [
+        { "op": "replace", "path": "/points/1/ready", "value": 540 },
+        { "op": "replace", "path": "/points/1/consume", "value": 580 },
+        { "op": "replace", "path": "/points/2/ready", "value": 540 },
+        { "op": "replace", "path": "/points/2/consume", "value": 580 },
+        { "op": "replace", "path": "/points/4/ready", "value": 540 },
+        { "op": "replace", "path": "/points/4/consume", "value": 580 },
+        { "op": "replace", "path": "/fleet/vehicles", "value": 3 }
+      ],
+      "expect": { "level": "layak", "optimum": 3400 }
+    },
+    {
+      "name": "P-q2-120",
+      "note": "q_2 = 120 > Q",
+      "patch": [{ "op": "replace", "path": "/nodes/1/demand", "value": 120 }],
+      "expect": {
+        "level": "input_tidak_valid",
+        "issues": [
+          { "code": "demand_exceeds_limit", "path": "nodes[1].demand" }
+        ]
+      }
+    },
+    {
+      "name": "P-Q-30",
+      "note": "Q = 30: q_2 = 40 dan q_4 = 35 melebihi Q",
+      "patch": [{ "op": "replace", "path": "/fleet/capacity", "value": 30 }],
+      "expect": {
+        "level": "input_tidak_valid",
+        "issues": [
+          { "code": "demand_exceeds_limit", "path": "nodes[1].demand" },
+          { "code": "demand_exceeds_limit", "path": "nodes[3].demand" }
+        ]
+      }
+    },
+    {
+      "name": "P-d5-570",
+      "note": "d_5 = 570 < a_5 = 580",
+      "patch": [{ "op": "replace", "path": "/points/4/consume", "value": 590 }],
+      "expect": {
+        "level": "input_tidak_valid",
+        "issues": [{ "code": "window_inverted", "path": "points[4]" }]
+      }
+    },
+    {
+      "name": "P-e0-530",
+      "note": "e_0 = 530: a'_4 = 550 > d'_4 = 530",
+      "patch": [{ "op": "replace", "path": "/kitchen/open", "value": 530 }],
+      "expect": { "level": "instans_tidak_layak" }
+    },
+    {
+      "name": "P-d4-495",
+      "note": "d_4 = 495: a_4 <= d_4 sah, tetapi a'_4 = 500 > 495",
+      "patch": [{ "op": "replace", "path": "/points/3/consume", "value": 515 }],
+      "expect": { "level": "instans_tidak_layak" }
+    },
+    {
+      "name": "P-d2-540",
+      "note": "d_2 = 540: saksi S1, T*_2 = 510",
+      "patch": [{ "op": "replace", "path": "/points/1/consume", "value": 560 }],
+      "expect": {
+        "level": "layak",
+        "witness": [
+          [2, 1, 5],
+          [4, 3]
+        ]
+      }
+    },
+    {
+      "name": "P-l0-640",
+      "note": "l_0 = 640: d'_3 = 605, saksi S1",
+      "patch": [{ "op": "replace", "path": "/kitchen/close", "value": 640 }],
+      "expect": {
+        "level": "layak",
+        "witness": [
+          [2, 1, 5],
+          [4, 3]
+        ]
+      }
+    }
+  ]
+}
