@@ -181,3 +181,12 @@ Log handoff antar-thread. Satu entri per sub-milestone, ditambahkan saat thread 
 - Pertanyaan terbuka: off-by-one `range`, `s_maks` per titik, dan langkah cek terakhir masih sering terlewat; bug "sah tapi salah" hanya tertangkap tes nilai.
 - Berikutnya: MO-2.3a Fixture hitung tangan (dipecah, bagian kecil per sesi).
 - Jam: estimasi 6 / aktual ~9
+
+## ✅ [MO-2.3a] Fixture hitung tangan → JSON + tes nilai harapan — 2026-11-28
+
+- Selesai: oracle `mealops.testing.oracle_model_a` (dict JSON mentah, tanpa Pydantic): `effective_window`, `check_route`, `set_partitions` (RGS), `enumerate_solutions` (H5: 9 solusi, optimum unik 3200 m; V3/V4 dengan `|K| = 3`: 3600/3400), `apply_patch` (JSON Patch `replace`, gagal keras). Fixture `h5.variants.json` (13 varian §3.8), `h5s.instance.json`, `h5p.instance.json`, `expected.model-bd.json` (15 kasus B/D, data saja). Tes dua arah `check_input`; θ H5-P. Teori: bijeksi RGS–partisi, Bell/Stirling, aturan perkalian, ceil bulat.
+- Keputusan: nilai harapan hanya dari hitung tangan, tidak dari keluaran oracle; oracle di `mealops.testing`; `.prettierignore` `datasets/` → `datasets/**/raw/`. `PROJECT_CONTEXT` v1.21.
+- File yang berubah: `services/mealops/py/src/mealops/testing/*`, `services/mealops/py/tests/test_{oracle_*,check_input_variants,fixture_h5p,expected_model_bd}.py`, `datasets/mealops/fixtures/*`, `.prettierignore`, `docs/mathematics/mealops/README.md`, `docs/PROGRESS.md`, `PROJECT_CONTEXT.md`.
+- Pertanyaan terbuka: nomor node vs lokasi tertukar; `q_j ≤ Q` (tingkat 1) vs `⌈Σq/Q⌉` (tingkat 2); arah pembulatan; ceil bulat di Rust (MO-4.1); fixture `n = 4`.
+- Berikutnya: MO-2.3b Loader Solomon + BKS.
+- Jam: estimasi 3 / aktual ~10

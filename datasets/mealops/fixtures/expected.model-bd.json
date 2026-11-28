@@ -1,0 +1,198 @@
+{
+  "source": "docs/mathematics/mealops/model.md §4.8, §4.10, §6.6, §7.3, §7.5, §7.8, §7.9",
+  "note": "Belum ada oracle. Diverifikasi hitung tangan dan enumerasi independen (MO-1.6). Jarak dalam meter, holding dalam porsi·menit. Rencana: vehicles = daftar kendaraan, tiap kendaraan = daftar trip berurutan, tiap trip = daftar node; batches = daftar batch berurutan.",
+  "cases": [
+    {
+      "name": "H5-rho2",
+      "base": "h5.instance.json",
+      "patch": [
+        { "op": "replace", "path": "/fleet/max_trips", "value": 2 },
+        { "op": "replace", "path": "/fleet/load_time", "value": 10 }
+      ],
+      "model": "B",
+      "used_by": "MO-11",
+      "expect": {
+        "feasible_count": 41,
+        "multi_trip_count": 32,
+        "optimum": 3200
+      }
+    },
+    {
+      "name": "H5-S",
+      "base": "h5s.instance.json",
+      "patch": [],
+      "model": "B",
+      "used_by": "MO-11",
+      "expect": {
+        "feasible_count": 8,
+        "optimum": 4600,
+        "optimum_count": 2,
+        "optimal_plans": [
+          { "vehicles": [[[2], [3]], [[4, 6, 1, 5]]] },
+          { "vehicles": [[[2], [5]], [[4, 6, 1, 3]]] }
+        ]
+      }
+    },
+    {
+      "name": "H5-S-lambda20",
+      "base": "h5s.instance.json",
+      "patch": [{ "op": "replace", "path": "/fleet/load_time", "value": 20 }],
+      "model": "B",
+      "used_by": "MO-11",
+      "expect": { "feasible_count": 4, "optimum": 4600 }
+    },
+    {
+      "name": "H5-S-rho3",
+      "base": "h5s.instance.json",
+      "patch": [{ "op": "replace", "path": "/fleet/max_trips", "value": 3 }],
+      "model": "B",
+      "used_by": "MO-11",
+      "expect": { "feasible_count": 11, "optimum": 4600 }
+    },
+    {
+      "name": "H5-S-M2-lambda15",
+      "base": "h5s.instance.json",
+      "patch": [{ "op": "replace", "path": "/fleet/load_time", "value": 15 }],
+      "model": "B",
+      "used_by": "MO-3.2",
+      "expect": {
+        "plan": { "vehicles": [[[2], [5, 3]], [[4, 6, 1]]] },
+        "plan_feasible": true,
+        "cost": 4800
+      }
+    },
+    {
+      "name": "H5-S-M2-lambda16",
+      "base": "h5s.instance.json",
+      "patch": [{ "op": "replace", "path": "/fleet/load_time", "value": 16 }],
+      "model": "B",
+      "used_by": "MO-3.2",
+      "expect": {
+        "plan": { "vehicles": [[[2], [5, 3]], [[4, 6, 1]]] },
+        "plan_feasible": false
+      }
+    },
+    {
+      "name": "V5",
+      "base": "h5s.instance.json",
+      "patch": [{ "op": "replace", "path": "/fleet/vehicles", "value": 1 }],
+      "model": "B",
+      "used_by": "MO-6.2, MO-11",
+      "expect": {
+        "level": "instans_tidak_layak",
+        "note": "untuk semua rho dan lambda >= 0"
+      }
+    },
+    {
+      "name": "H5-P",
+      "base": "h5p.instance.json",
+      "patch": [],
+      "model": "D",
+      "used_by": "MO-13",
+      "expect": {
+        "feasible_count": 13,
+        "trip_layouts": 5,
+        "optimum": [3800, 12395],
+        "optimum_count": 1,
+        "optimal_plans": [
+          {
+            "vehicles": [
+              [[4], [2, 1]],
+              [[5], [3]]
+            ],
+            "batches": [[4], [1, 2, 5], [3]]
+          }
+        ]
+      }
+    },
+    {
+      "name": "H5-P-rho1",
+      "base": "h5p.instance.json",
+      "patch": [{ "op": "replace", "path": "/fleet/max_trips", "value": 1 }],
+      "model": "D",
+      "used_by": "MO-6.2, MO-13",
+      "expect": {
+        "level": "instans_tidak_layak",
+        "note": "lolos kelima uji §7.6"
+      }
+    },
+    {
+      "name": "H5-P-rho1-K3",
+      "base": "h5p.instance.json",
+      "patch": [
+        { "op": "replace", "path": "/fleet/max_trips", "value": 1 },
+        { "op": "replace", "path": "/fleet/vehicles", "value": 3 }
+      ],
+      "model": "D",
+      "used_by": "MO-13",
+      "expect": { "optimum": [4000, 11835] }
+    },
+    {
+      "name": "V6",
+      "base": "h5p.instance.json",
+      "patch": [
+        { "op": "replace", "path": "/production/holding_max", "value": 90 }
+      ],
+      "model": "D",
+      "used_by": "MO-6.3, MO-13.2",
+      "expect": { "level": "instans_tidak_layak", "beta_star": 4 }
+    },
+    {
+      "name": "V6-B4",
+      "base": "h5p.instance.json",
+      "patch": [
+        { "op": "replace", "path": "/production/holding_max", "value": 90 },
+        { "op": "replace", "path": "/production/max_batches", "value": 4 }
+      ],
+      "model": "D",
+      "used_by": "MO-13",
+      "expect": { "level": "instans_tidak_layak" }
+    },
+    {
+      "name": "H5-P-H200",
+      "base": "h5p.instance.json",
+      "patch": [
+        { "op": "replace", "path": "/production/holding_max", "value": 200 }
+      ],
+      "model": "D",
+      "used_by": "MO-13",
+      "expect": { "optimum": [3200, 18400] }
+    },
+    {
+      "name": "S1-batch",
+      "base": "h5p.instance.json",
+      "patch": [
+        { "op": "replace", "path": "/fleet/max_trips", "value": 1 },
+        { "op": "replace", "path": "/production/holding_max", "value": 200 }
+      ],
+      "model": "D",
+      "used_by": "MO-13.1",
+      "expect": {
+        "plan": {
+          "vehicles": [[[2, 1, 5]], [[4, 3]]],
+          "batches": [
+            [2, 4],
+            [1, 3, 5]
+          ]
+        },
+        "earliest_holding": 32355,
+        "latest_holding": 19260,
+        "min_holding_max": 186
+      }
+    },
+    {
+      "name": "H5-ell",
+      "base": "h5p.instance.json",
+      "patch": [],
+      "model": "D",
+      "used_by": "MO-6.3, MO-13.2",
+      "expect": {
+        "ell": [58, 74, 72, 64, 62],
+        "sum_q_ell": 9020,
+        "cook_window_lower": [510, 470, 550, 430, 510],
+        "cook_window_upper": [572, 516, 598, 486, 568],
+        "beta_star": 2
+      }
+    }
+  ]
+}
